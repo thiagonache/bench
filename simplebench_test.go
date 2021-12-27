@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/thiagonache/simplebench"
 )
@@ -84,5 +85,20 @@ func TestNewLoadGenCustom(t *testing.T) {
 	gotUserAgent := loadgen.GetHTTPUserAgent()
 	if wantUserAgent != gotUserAgent {
 		t.Errorf("user-agent: want %q, got %q", wantUserAgent, gotUserAgent)
+	}
+}
+
+func TestTotalTime(t *testing.T) {
+	t.Parallel()
+	loadgen := simplebench.NewLoadGen()
+	loadgen.Wg.Add(1)
+	loadgen.DoRequest("https://bitfieldconsulting.com")
+	wantMinTotalTime := 100 * time.Millisecond
+	gotTotalTime := loadgen.ElapsedTimeSinceStart()
+	if gotTotalTime == 0 {
+		t.Fatal("total time of zero seconds is invalid")
+	}
+	if wantMinTotalTime >= gotTotalTime {
+		t.Errorf("total time: want bigger than %d, got %d", wantMinTotalTime, gotTotalTime)
 	}
 }
