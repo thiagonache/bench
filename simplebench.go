@@ -8,10 +8,10 @@ import (
 )
 
 type LoadGen struct {
-	Client         *http.Client
-	requests       int
-	URL, UserAgent string
-	Wg             *sync.WaitGroup
+	Client    *http.Client
+	requests  int
+	userAgent string
+	Wg        *sync.WaitGroup
 }
 
 type Option func(*LoadGen)
@@ -20,7 +20,7 @@ func NewLoadGen(opts ...Option) *LoadGen {
 	loadgen := &LoadGen{
 		Client:    &http.Client{Timeout: 30 * time.Second},
 		requests:  1,
-		UserAgent: "SimpleBench 0.0.1 Alpha",
+		userAgent: "SimpleBench 0.0.1 Alpha",
 		Wg:        &sync.WaitGroup{},
 	}
 	for _, o := range opts {
@@ -34,12 +34,12 @@ func WithRequests(reqs int) Option {
 }
 
 func WithHTTPUserAgent(userAgent string) Option {
-	return func(lg *LoadGen) { lg.UserAgent = userAgent }
+	return func(lg *LoadGen) { lg.userAgent = userAgent }
 }
 
 func (lg LoadGen) GetRequests() int { return lg.requests }
 
-func (lg LoadGen) GetHTTPUserAgent() string { return lg.UserAgent }
+func (lg LoadGen) GetHTTPUserAgent() string { return lg.userAgent }
 
 func (lg LoadGen) DoRequest(url string) error {
 	defer lg.Wg.Done()
