@@ -63,6 +63,6 @@ func (lg LoadGen) DoRequest(url string) error {
 	return nil
 }
 
-func (lg *LoadGen) ElapsedTimeSinceStart() time.Duration {
+func (lg LoadGen) ElapsedTimeSinceStart() time.Duration {
 	return time.Since(lg.startAt)
 }
