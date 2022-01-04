@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/thiagonache/simplebench"
 )
@@ -27,7 +28,7 @@ func TestRequest(t *testing.T) {
 	if wantReqs != totalReqs {
 		t.Errorf("want %d got %d requests", wantReqs, totalReqs)
 	}
-	gotTotalTime := loadgen.ElapsedTimeSinceStart()
+	gotTotalTime := time.Since(loadgen.StartAt)
 	if gotTotalTime == 0 {
 		t.Fatal("total time of zero seconds is invalid")
 	}
@@ -48,7 +49,7 @@ func TestRequestNonOK(t *testing.T) {
 		t.Fatal("Expecting error but not found")
 	}
 	if !called {
-		t.Fatal("Request not done")
+		t.Fatal("Request not made")
 	}
 
 }

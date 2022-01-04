@@ -10,7 +10,7 @@ import (
 type LoadGen struct {
 	Client    *http.Client
 	requests  int
-	startAt   time.Time
+	StartAt   time.Time
 	userAgent string
 	Wg        *sync.WaitGroup
 }
@@ -22,7 +22,7 @@ func NewLoadGen(opts ...Option) *LoadGen {
 		Client:    &http.Client{Timeout: 30 * time.Second},
 		requests:  1,
 		userAgent: "SimpleBench 0.0.1 Alpha",
-		startAt:   time.Now(),
+		StartAt:   time.Now(),
 		Wg:        &sync.WaitGroup{},
 	}
 	for _, o := range opts {
@@ -61,8 +61,4 @@ func (lg LoadGen) DoRequest(url string) error {
 		}
 	}
 	return nil
-}
-
-func (lg LoadGen) ElapsedTimeSinceStart() time.Duration {
-	return time.Since(lg.startAt)
 }
