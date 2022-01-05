@@ -147,3 +147,20 @@ func TestURLParseValid(t *testing.T) {
 		t.Error("error not expected but found")
 	}
 }
+
+func TestWorkGenerator(t *testing.T) {
+	t.Parallel()
+	loadgen, err := simplebench.NewLoadGen("http://fake.url", simplebench.WithRequests(2))
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantMessages := 2
+	gotMessages := 0
+	work := loadgen.GenerateWork()
+	for range work {
+		gotMessages++
+	}
+	if wantMessages != gotMessages {
+		t.Errorf("want %d messages in the channel but got %d", wantMessages, gotMessages)
+	}
+}

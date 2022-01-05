@@ -72,3 +72,14 @@ func (lg LoadGen) DoRequest() error {
 	}
 	return nil
 }
+
+func (lg LoadGen) GenerateWork() <-chan string {
+	work := make(chan string, lg.requests)
+	go func() {
+		defer close(work)
+		for x := 0; x < lg.requests; x++ {
+			work <- lg.URL
+		}
+	}()
+	return work
+}
