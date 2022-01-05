@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/thiagonache/simplebench"
 )
 
@@ -126,15 +127,13 @@ func TestRun(t *testing.T) {
 	}
 	loadgen.Client = server.Client()
 	loadgen.Run()
-	wantReqs := uint64(1000)
-	gotReqs := loadgen.Stats.Requests
-	if wantReqs != gotReqs {
-		t.Errorf("want total of %d requests but got %d", wantReqs, gotReqs)
+	wantStats := simplebench.Stats{
+		Requests: 1000,
+		Success:  1000,
 	}
-	wantSuccess := uint64(1000)
-	gotSuccess := loadgen.Stats.Success
-	if wantSuccess != gotSuccess {
-		t.Errorf("want total of %d requests suceeded but got %d", wantSuccess, gotSuccess)
+	gotStats := loadgen.Stats
+	if !cmp.Equal(wantStats, gotStats) {
+		t.Error(cmp.Diff(wantStats, gotStats))
 	}
 
 	gotTotalTime := time.Since(loadgen.StartAt)
