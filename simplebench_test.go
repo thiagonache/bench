@@ -10,39 +10,6 @@ import (
 	"github.com/thiagonache/simplebench"
 )
 
-func TestRequest(t *testing.T) {
-	t.Parallel()
-	totalReqs := 0
-
-	server := httptest.NewTLSServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-		totalReqs++
-		fmt.Fprintf(rw, "HelloWorld")
-	}))
-	loadgen, err := simplebench.NewLoadGen(server.URL, simplebench.WithRequests(10))
-	if err != nil {
-		t.Fatal(err)
-	}
-	wantURL := server.URL
-	gotURL := loadgen.URL
-	if wantURL != gotURL {
-		t.Errorf("want %q got %q", wantURL, gotURL)
-	}
-	loadgen.Client = server.Client()
-	wantReqs := 10
-	loadgen.Wg.Add(10)
-	err = loadgen.DoRequest()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if wantReqs != totalReqs {
-		t.Errorf("want %d got %d requests", wantReqs, totalReqs)
-	}
-	gotTotalTime := time.Since(loadgen.StartAt)
-	if gotTotalTime == 0 {
-		t.Fatal("total time of zero seconds is invalid")
-	}
-}
-
 func TestRequestNonOK(t *testing.T) {
 	t.Parallel()
 	called := false
@@ -56,7 +23,7 @@ func TestRequestNonOK(t *testing.T) {
 	}
 	loadgen.Client = server.Client()
 	loadgen.Wg.Add(1)
-	err = loadgen.DoRequest()
+	loadgen.DoRequest(server.URL)
 	if err == nil {
 		t.Fatal("Expecting error but not found")
 	}
@@ -148,19 +115,30 @@ func TestURLParseValid(t *testing.T) {
 	}
 }
 
-func TestWorkGenerator(t *testing.T) {
+func TestRun(t *testing.T) {
 	t.Parallel()
-	loadgen, err := simplebench.NewLoadGen("http://fake.url", simplebench.WithRequests(2))
+	server := httptest.NewTLSServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(rw, "HelloWorld")
+	}))
+	loadgen, err := simplebench.NewLoadGen(server.URL, simplebench.WithRequests(1000))
 	if err != nil {
 		t.Fatal(err)
 	}
-	wantMessages := 2
-	gotMessages := 0
-	work := loadgen.GenerateWork()
-	for range work {
-		gotMessages++
+	loadgen.Client = server.Client()
+	loadgen.Run()
+	wantReqs := uint64(1000)
+	gotReqs := loadgen.Stats.Requests
+	if wantReqs != gotReqs {
+		t.Errorf("want total of %d requests but got %d", wantReqs, gotReqs)
 	}
-	if wantMessages != gotMessages {
-		t.Errorf("want %d messages in the channel but got %d", wantMessages, gotMessages)
+	wantSuccess := uint64(1000)
+	gotSuccess := loadgen.Stats.Success
+	if wantSuccess != gotSuccess {
+		t.Errorf("want total of %d requests suceeded but got %d", wantSuccess, gotSuccess)
+	}
+
+	gotTotalTime := time.Since(loadgen.StartAt)
+	if gotTotalTime == 0 {
+		t.Fatal("total time of zero seconds is invalid")
 	}
 }

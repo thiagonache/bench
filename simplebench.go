@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/url"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -12,9 +13,14 @@ type LoadGen struct {
 	Client    *http.Client
 	requests  int
 	StartAt   time.Time
+	Stats     Stats
 	userAgent string
 	URL       string
 	Wg        *sync.WaitGroup
+}
+
+type Stats struct {
+	Requests, Success uint64
 }
 
 type Option func(*LoadGen)
@@ -53,33 +59,42 @@ func (lg LoadGen) GetRequests() int { return lg.requests }
 
 func (lg LoadGen) GetHTTPUserAgent() string { return lg.userAgent }
 
-func (lg LoadGen) DoRequest() error {
+func (lg *LoadGen) DoRequest(url string) {
 	defer lg.Wg.Done()
-	for x := 0; x < lg.requests; x++ {
-		req, err := http.NewRequest(http.MethodGet, lg.URL, nil)
-		if err != nil {
-			return err
-		}
-		req.Header.Set("user-agent", lg.GetHTTPUserAgent())
-		req.Header.Set("accept", "*/*")
-		resp, err := lg.Client.Do(req)
-		if err != nil {
-			return err
-		}
-		if resp.StatusCode != http.StatusOK {
-			return fmt.Errorf("unexpected status code %d", resp.StatusCode)
-		}
+	atomic.AddUint64(&lg.Stats.Requests, 1)
+	req, err := http.NewRequest(http.MethodGet, lg.URL, nil)
+	if err != nil {
+		panic(err)
 	}
-	return nil
+	req.Header.Set("user-agent", lg.GetHTTPUserAgent())
+	req.Header.Set("accept", "*/*")
+	resp, err := lg.Client.Do(req)
+	if err != nil {
+		panic(err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		panic(fmt.Errorf("unexpected status code %d", resp.StatusCode))
+	}
+	atomic.AddUint64(&lg.Stats.Success, 1)
 }
 
-func (lg LoadGen) GenerateWork() <-chan string {
-	work := make(chan string, lg.requests)
-	go func() {
-		defer close(work)
-		for x := 0; x < lg.requests; x++ {
-			work <- lg.URL
-		}
-	}()
-	return work
+func (lg *LoadGen) Run() {
+	bencher := func() <-chan string {
+		work := make(chan string, lg.requests)
+		go func() {
+			defer close(work)
+			for x := 0; x < lg.requests; x++ {
+				work <- lg.URL
+			}
+		}()
+		return work
+	}
+
+	work := bencher()
+	for url := range work {
+		lg.Wg.Add(1)
+		go lg.DoRequest(url)
+	}
+	lg.Wg.Wait()
+
 }
