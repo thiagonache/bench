@@ -18,15 +18,16 @@ func TestRequestNonOK(t *testing.T) {
 		called = true
 		http.Error(rw, "ForceFailing", http.StatusTeapot)
 	}))
-	loadgen, err := simplebench.NewLoadGen(server.URL)
+	loadgen, err := simplebench.NewLoadGen(server.URL, simplebench.WithHTTPClient(server.Client()))
 	if err != nil {
 		t.Fatal(err)
 	}
-	loadgen.Client = server.Client()
 	loadgen.Wg.Add(1)
 	loadgen.DoRequest(server.URL)
-	if err == nil {
-		t.Fatal("Expecting error but not found")
+	wantFail := uint64(1)
+	gotFail := loadgen.Stats.Failures
+	if wantFail != gotFail {
+		t.Fatal("Expecting failure but not found")
 	}
 	if !called {
 		t.Fatal("Request not made")
@@ -42,7 +43,7 @@ func TestNewLoadGenDefault(t *testing.T) {
 	}
 
 	wantReqs := 1
-	gotReqs := loadgen.GetRequests()
+	gotReqs := loadgen.Requests
 	if wantReqs != gotReqs {
 		t.Errorf("reqs: want %d, got %d", wantReqs, gotReqs)
 	}
@@ -52,21 +53,32 @@ func TestNewLoadGenDefault(t *testing.T) {
 	if wantUserAgent != gotUserAgent {
 		t.Errorf("user-agent: want %q, got %q", wantUserAgent, gotUserAgent)
 	}
+
+	wantHTTPClient := http.DefaultClient
+	wantHTTPClient.Timeout = 30 * time.Second
+	gotHTTPClient := loadgen.Client
+	if !cmp.Equal(wantHTTPClient, gotHTTPClient) {
+		t.Errorf(cmp.Diff(wantHTTPClient, gotHTTPClient))
+	}
 }
 
 func TestNewLoadGenCustom(t *testing.T) {
 	t.Parallel()
+	client := http.Client{
+		Timeout: 45,
+	}
 	loadgen, err := simplebench.NewLoadGen(
 		"http://fake.url",
 		simplebench.WithRequests(10),
 		simplebench.WithHTTPUserAgent("CustomUserAgent"),
+		simplebench.WithHTTPClient(&client),
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	wantReqs := 10
-	gotReqs := loadgen.GetRequests()
+	gotReqs := loadgen.Requests
 	if wantReqs != gotReqs {
 		t.Errorf("reqs: want %d, got %d", wantReqs, gotReqs)
 	}
@@ -75,6 +87,14 @@ func TestNewLoadGenCustom(t *testing.T) {
 	gotUserAgent := loadgen.GetHTTPUserAgent()
 	if wantUserAgent != gotUserAgent {
 		t.Errorf("user-agent: want %q, got %q", wantUserAgent, gotUserAgent)
+	}
+
+	wantHTTPClient := &http.Client{
+		Timeout: 45,
+	}
+	gotHTTPClient := loadgen.Client
+	if !cmp.Equal(wantHTTPClient, gotHTTPClient) {
+		t.Errorf(cmp.Diff(wantHTTPClient, gotHTTPClient))
 	}
 }
 
@@ -121,11 +141,13 @@ func TestRun(t *testing.T) {
 	server := httptest.NewTLSServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(rw, "HelloWorld")
 	}))
-	loadgen, err := simplebench.NewLoadGen(server.URL, simplebench.WithRequests(1000))
+	loadgen, err := simplebench.NewLoadGen(server.URL,
+		simplebench.WithRequests(1000),
+		simplebench.WithHTTPClient(server.Client()),
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	loadgen.Client = server.Client()
 	loadgen.Run()
 	wantStats := simplebench.Stats{
 		Requests: 1000,

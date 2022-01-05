@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -11,7 +12,7 @@ import (
 
 type LoadGen struct {
 	Client    *http.Client
-	requests  int
+	Requests  int
 	StartAt   time.Time
 	Stats     Stats
 	userAgent string
@@ -20,7 +21,7 @@ type LoadGen struct {
 }
 
 type Stats struct {
-	Requests, Success uint64
+	Requests, Success, Failures uint64
 }
 
 type Option func(*LoadGen)
@@ -35,7 +36,7 @@ func NewLoadGen(URL string, opts ...Option) (*LoadGen, error) {
 	}
 	loadgen := &LoadGen{
 		Client:    &http.Client{Timeout: 30 * time.Second},
-		requests:  1,
+		Requests:  1,
 		userAgent: "SimpleBench 0.0.1 Alpha",
 		URL:       URL,
 		StartAt:   time.Now(),
@@ -48,14 +49,16 @@ func NewLoadGen(URL string, opts ...Option) (*LoadGen, error) {
 }
 
 func WithRequests(reqs int) Option {
-	return func(lg *LoadGen) { lg.requests = reqs }
+	return func(lg *LoadGen) { lg.Requests = reqs }
 }
 
 func WithHTTPUserAgent(userAgent string) Option {
 	return func(lg *LoadGen) { lg.userAgent = userAgent }
 }
 
-func (lg LoadGen) GetRequests() int { return lg.requests }
+func WithHTTPClient(client *http.Client) Option {
+	return func(lg *LoadGen) { lg.Client = client }
+}
 
 func (lg LoadGen) GetHTTPUserAgent() string { return lg.userAgent }
 
@@ -64,26 +67,29 @@ func (lg *LoadGen) DoRequest(url string) {
 	atomic.AddUint64(&lg.Stats.Requests, 1)
 	req, err := http.NewRequest(http.MethodGet, lg.URL, nil)
 	if err != nil {
-		panic(err)
+		fmt.Fprintln(os.Stderr, err)
+		atomic.AddUint64(&lg.Stats.Failures, 1)
 	}
 	req.Header.Set("user-agent", lg.GetHTTPUserAgent())
 	req.Header.Set("accept", "*/*")
 	resp, err := lg.Client.Do(req)
 	if err != nil {
-		panic(err)
+		fmt.Fprintln(os.Stderr, err)
+		atomic.AddUint64(&lg.Stats.Failures, 1)
 	}
 	if resp.StatusCode != http.StatusOK {
-		panic(fmt.Errorf("unexpected status code %d", resp.StatusCode))
+		fmt.Fprintf(os.Stderr, "unexpected status code %d\n", resp.StatusCode)
+		atomic.AddUint64(&lg.Stats.Failures, 1)
 	}
 	atomic.AddUint64(&lg.Stats.Success, 1)
 }
 
 func (lg *LoadGen) Run() {
 	bencher := func() <-chan string {
-		work := make(chan string, lg.requests)
+		work := make(chan string, lg.Requests)
 		go func() {
 			defer close(work)
-			for x := 0; x < lg.requests; x++ {
+			for x := 0; x < lg.Requests; x++ {
 				work <- lg.URL
 			}
 		}()
