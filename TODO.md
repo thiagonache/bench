@@ -1,9 +1,9 @@
-- Take the URL as parameter
+- Take the URL as parameter :white_check_mark:
 - Take the concurrent as parameter
-- Take total of requests as parameter
+- Take total of requests as parameter :white_check_mark:
 - Take interval in seconds as parameter
 - Consider to have profiles as parameter to determine level of stress
-- What about non 200 response code
+- What about non 200 response code :white_check_mark:
 
 Measurements:
 
