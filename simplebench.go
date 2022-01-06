@@ -69,6 +69,7 @@ func (lg *LoadGen) DoRequest(url string) {
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		atomic.AddUint64(&lg.Stats.Failures, 1)
+		return
 	}
 	req.Header.Set("user-agent", lg.GetHTTPUserAgent())
 	req.Header.Set("accept", "*/*")
@@ -76,6 +77,7 @@ func (lg *LoadGen) DoRequest(url string) {
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		atomic.AddUint64(&lg.Stats.Failures, 1)
+		return
 	}
 	if resp.StatusCode != http.StatusOK {
 		fmt.Fprintf(os.Stderr, "unexpected status code %d\n", resp.StatusCode)
