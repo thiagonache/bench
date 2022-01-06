@@ -1,21 +1,25 @@
 package main
 
 import (
+	"flag"
 	"fmt"
-	"time"
 
 	"github.com/thiagonache/simplebench"
 )
 
 func main() {
-	site := "https://bitfieldconsulting.com"
-	reqs := 10
-
-	loadgen, err := simplebench.NewLoadGen(site, simplebench.WithRequests(reqs))
+	var url string
+	var reqs int
+	flag.StringVar(&url, "u", "", "url to run benchmark")
+	flag.IntVar(&reqs, "r", 1, "number of requests to be performed in the benchmark")
+	flag.Parse()
+	if url == "" {
+		flag.Usage()
+		return
+	}
+	loadgen, err := simplebench.NewLoadGen(url, simplebench.WithRequests(reqs))
 	if err != nil {
-		fmt.Errorf("Error creating NewLoadGen object: %v", err)
+		panic(fmt.Errorf("error creating NewLoadGen object: %v", err))
 	}
 	loadgen.Run()
-	fmt.Printf("URL %q => Bench is done\n", site)
-	fmt.Printf("Time: %v Requests: %d Success: %d\n", time.Since(loadgen.StartAt), loadgen.Stats.Requests, loadgen.Stats.Success)
 }

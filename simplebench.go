@@ -102,5 +102,6 @@ func (lg *LoadGen) Run() {
 		go lg.DoRequest(url)
 	}
 	lg.Wg.Wait()
-
+	fmt.Printf("URL %q benchmark is done\n", lg.URL)
+	fmt.Printf("Time: %v Requests: %d Success: %d Failures: %d\n", time.Since(lg.StartAt), lg.Stats.Requests, lg.Stats.Success, lg.Stats.Failures)
 }
