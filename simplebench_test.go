@@ -2,6 +2,7 @@ package simplebench_test
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -18,7 +19,11 @@ func TestRequestNonOK(t *testing.T) {
 		called = true
 		http.Error(rw, "ForceFailing", http.StatusTeapot)
 	}))
-	loadgen, err := simplebench.NewLoadGen(server.URL, simplebench.WithHTTPClient(server.Client()))
+	loadgen, err := simplebench.NewLoadGen(server.URL,
+		simplebench.WithHTTPClient(server.Client()),
+		simplebench.WithStdout(io.Discard),
+		simplebench.WithStderr(io.Discard),
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -28,6 +33,11 @@ func TestRequestNonOK(t *testing.T) {
 	gotFail := loadgen.Stats.Failures
 	if wantFail != gotFail {
 		t.Fatal("Expecting failure but not found")
+	}
+	wantSuccess := uint64(0)
+	gotSuccess := loadgen.Stats.Success
+	if wantSuccess != gotSuccess {
+		t.Errorf("success want %d got %d", wantSuccess, gotSuccess)
 	}
 	if !called {
 		t.Fatal("Request not made")
@@ -144,6 +154,8 @@ func TestRun(t *testing.T) {
 	loadgen, err := simplebench.NewLoadGen(server.URL,
 		simplebench.WithRequests(1000),
 		simplebench.WithHTTPClient(server.Client()),
+		simplebench.WithStdout(io.Discard),
+		simplebench.WithStderr(io.Discard),
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -152,6 +164,7 @@ func TestRun(t *testing.T) {
 	wantStats := simplebench.Stats{
 		Requests: 1000,
 		Success:  1000,
+		Failures: 0,
 	}
 	gotStats := loadgen.Stats
 	if !cmp.Equal(wantStats, gotStats) {
@@ -161,5 +174,25 @@ func TestRun(t *testing.T) {
 	gotTotalTime := time.Since(loadgen.StartAt)
 	if gotTotalTime == 0 {
 		t.Fatal("total time of zero seconds is invalid")
+	}
+}
+
+func TestRecordStats(t *testing.T) {
+	t.Parallel()
+	loadgen, err := simplebench.NewLoadGen("http://fake.url")
+	if err != nil {
+		t.Fatal(err)
+	}
+	loadgen.RecordRequest()
+	loadgen.RecordSuccess()
+	loadgen.RecordFailure()
+	want := simplebench.Stats{
+		Requests: 1,
+		Success:  1,
+		Failures: 1,
+	}
+	got := loadgen.Stats
+	if !cmp.Equal(want, got) {
+		t.Error(cmp.Diff(want, got))
 	}
 }
