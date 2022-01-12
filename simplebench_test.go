@@ -1,6 +1,7 @@
 package simplebench_test
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"net/http"
@@ -27,17 +28,16 @@ func TestRequestNonOK(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	loadgen.Wg.Add(1)
+	loadgen.AddToWG(1)
 	loadgen.DoRequest(server.URL)
-	wantFail := uint64(1)
-	gotFail := loadgen.Stats.Failures
-	if wantFail != gotFail {
-		t.Fatal("Expecting failure but not found")
+	want := simplebench.Stats{
+		Requests: 1,
+		Success:  0,
+		Failures: 1,
 	}
-	wantSuccess := uint64(0)
-	gotSuccess := loadgen.Stats.Success
-	if wantSuccess != gotSuccess {
-		t.Errorf("success want %d got %d", wantSuccess, gotSuccess)
+	got := loadgen.GetStats()
+	if !cmp.Equal(want, got) {
+		t.Error(cmp.Diff(want, got))
 	}
 	if !called {
 		t.Fatal("Request not made")
@@ -53,7 +53,7 @@ func TestNewLoadGenDefault(t *testing.T) {
 	}
 
 	wantReqs := 1
-	gotReqs := loadgen.Requests
+	gotReqs := loadgen.GetRequests()
 	if wantReqs != gotReqs {
 		t.Errorf("reqs: want %d, got %d", wantReqs, gotReqs)
 	}
@@ -66,7 +66,7 @@ func TestNewLoadGenDefault(t *testing.T) {
 
 	wantHTTPClient := http.DefaultClient
 	wantHTTPClient.Timeout = 30 * time.Second
-	gotHTTPClient := loadgen.Client
+	gotHTTPClient := loadgen.GetHTTPClient()
 	if !cmp.Equal(wantHTTPClient, gotHTTPClient) {
 		t.Errorf(cmp.Diff(wantHTTPClient, gotHTTPClient))
 	}
@@ -88,7 +88,7 @@ func TestNewLoadGenCustom(t *testing.T) {
 	}
 
 	wantReqs := 10
-	gotReqs := loadgen.Requests
+	gotReqs := loadgen.GetRequests()
 	if wantReqs != gotReqs {
 		t.Errorf("reqs: want %d, got %d", wantReqs, gotReqs)
 	}
@@ -102,7 +102,7 @@ func TestNewLoadGenCustom(t *testing.T) {
 	wantHTTPClient := &http.Client{
 		Timeout: 45,
 	}
-	gotHTTPClient := loadgen.Client
+	gotHTTPClient := loadgen.GetHTTPClient()
 	if !cmp.Equal(wantHTTPClient, gotHTTPClient) {
 		t.Errorf(cmp.Diff(wantHTTPClient, gotHTTPClient))
 	}
@@ -166,12 +166,12 @@ func TestRun(t *testing.T) {
 		Success:  1000,
 		Failures: 0,
 	}
-	gotStats := loadgen.Stats
+	gotStats := loadgen.GetStats()
 	if !cmp.Equal(wantStats, gotStats) {
 		t.Error(cmp.Diff(wantStats, gotStats))
 	}
 
-	gotTotalTime := time.Since(loadgen.StartAt)
+	gotTotalTime := time.Since(loadgen.GetStartTime())
 	if gotTotalTime == 0 {
 		t.Fatal("total time of zero seconds is invalid")
 	}
@@ -191,8 +191,36 @@ func TestRecordStats(t *testing.T) {
 		Success:  1,
 		Failures: 1,
 	}
-	got := loadgen.Stats
+	got := loadgen.GetStats()
 	if !cmp.Equal(want, got) {
 		t.Error(cmp.Diff(want, got))
+	}
+}
+
+func TestLog(t *testing.T) {
+	t.Parallel()
+
+	stdout := &bytes.Buffer{}
+	stderr := &bytes.Buffer{}
+	loadgen, err := simplebench.NewLoadGen(
+		"http://fake.url",
+		simplebench.WithStdout(stdout),
+		simplebench.WithStderr(stderr),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "this message goes to stdout"
+	loadgen.LogStdOut("this message goes to stdout")
+	got := stdout.String()
+	if want != got {
+		t.Errorf("want message %q in stdout but found %q", want, got)
+	}
+
+	want = "this message goes to stderr"
+	loadgen.LogStdErr("this message goes to stderr")
+	got = stderr.String()
+	if want != got {
+		t.Errorf("want message %q in stderr but found %q", want, got)
 	}
 }
