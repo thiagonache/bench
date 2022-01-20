@@ -14,11 +14,10 @@ import (
 	"github.com/thiagonache/bench"
 )
 
-func TestRequestNonOK(t *testing.T) {
+func TestNonOKStatusRecordedAsFailure(t *testing.T) {
 	t.Parallel()
-	called := false
+
 	server := httptest.NewTLSServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-		called = true
 		http.Error(rw, "ForceFailing", http.StatusTeapot)
 	}))
 	loadgen, err := bench.NewLoadGen(server.URL,
@@ -39,9 +38,6 @@ func TestRequestNonOK(t *testing.T) {
 	got := loadgen.GetStats()
 	if !cmp.Equal(want, got, cmpopts.IgnoreFields(bench.Stats{}, "MU")) {
 		t.Error(cmp.Diff(want, got, cmpopts.IgnoreFields(bench.Stats{}, "MU")))
-	}
-	if !called {
-		t.Fatal("Request not made")
 	}
 
 }
