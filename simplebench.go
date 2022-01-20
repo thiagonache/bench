@@ -1,4 +1,4 @@
-package simplebench
+package bench
 
 import (
 	"fmt"
@@ -24,6 +24,9 @@ type LoadGen struct {
 
 type Stats struct {
 	Requests, Success, Failures uint64
+	Slowest                     time.Duration
+	MU                          *sync.Mutex
+	ExecutionsTime              []time.Duration
 }
 
 type Option func(*LoadGen)
@@ -45,6 +48,14 @@ func NewLoadGen(URL string, opts ...Option) (*LoadGen, error) {
 		stdout:    os.Stdout,
 		stderr:    os.Stderr,
 		wg:        &sync.WaitGroup{},
+		stats: Stats{
+			Requests:       0,
+			Success:        0,
+			Failures:       0,
+			Slowest:        0,
+			MU:             &sync.Mutex{},
+			ExecutionsTime: []time.Duration{},
+		},
 	}
 	for _, o := range opts {
 		o(loadgen)
@@ -121,7 +132,10 @@ func (lg *LoadGen) DoRequest(url string) {
 	}
 	req.Header.Set("user-agent", lg.GetHTTPUserAgent())
 	req.Header.Set("accept", "*/*")
+	startTime := time.Now()
 	resp, err := lg.client.Do(req)
+	elapsedTime := time.Since(startTime)
+	lg.RecordTime(elapsedTime)
 	if err != nil {
 		lg.LogStdErr(err.Error())
 		lg.RecordFailure()
@@ -167,6 +181,12 @@ func (lg *LoadGen) RecordSuccess() {
 
 func (lg *LoadGen) RecordFailure() {
 	atomic.AddUint64(&lg.stats.Failures, 1)
+}
+
+func (lg *LoadGen) RecordTime(executionTime time.Duration) {
+	lg.stats.MU.Lock()
+	defer lg.stats.MU.Unlock()
+	lg.stats.ExecutionsTime = append(lg.stats.ExecutionsTime, executionTime)
 }
 
 func (lg LoadGen) LogStdOut(msg string) {

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/thiagonache/simplebench"
+	"github.com/thiagonache/bench"
 )
 
 func main() {
@@ -17,7 +17,7 @@ func main() {
 		os.Exit(1)
 	}
 	url := os.Args[1]
-	loadgen, err := simplebench.NewLoadGen(url, simplebench.WithRequests(reqs))
+	loadgen, err := bench.NewLoadGen(url, bench.WithRequests(reqs))
 	if err != nil {
 		panic(fmt.Errorf("error creating NewLoadGen object: %v", err))
 	}

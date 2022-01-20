@@ -1,4 +1,4 @@
-package simplebench_test
+package bench_test
 
 import (
 	"bytes"
@@ -10,7 +10,8 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/thiagonache/simplebench"
+	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/thiagonache/bench"
 )
 
 func TestRequestNonOK(t *testing.T) {
@@ -20,24 +21,24 @@ func TestRequestNonOK(t *testing.T) {
 		called = true
 		http.Error(rw, "ForceFailing", http.StatusTeapot)
 	}))
-	loadgen, err := simplebench.NewLoadGen(server.URL,
-		simplebench.WithHTTPClient(server.Client()),
-		simplebench.WithStdout(io.Discard),
-		simplebench.WithStderr(io.Discard),
+	loadgen, err := bench.NewLoadGen(server.URL,
+		bench.WithHTTPClient(server.Client()),
+		bench.WithStdout(io.Discard),
+		bench.WithStderr(io.Discard),
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
 	loadgen.AddToWG(1)
 	loadgen.DoRequest(server.URL)
-	want := simplebench.Stats{
+	want := bench.Stats{
 		Requests: 1,
 		Success:  0,
 		Failures: 1,
 	}
 	got := loadgen.GetStats()
-	if !cmp.Equal(want, got) {
-		t.Error(cmp.Diff(want, got))
+	if !cmp.Equal(want, got, cmpopts.IgnoreFields(bench.Stats{}, "MU")) {
+		t.Error(cmp.Diff(want, got, cmpopts.IgnoreFields(bench.Stats{}, "MU")))
 	}
 	if !called {
 		t.Fatal("Request not made")
@@ -47,7 +48,7 @@ func TestRequestNonOK(t *testing.T) {
 
 func TestNewLoadGenDefault(t *testing.T) {
 	t.Parallel()
-	loadgen, err := simplebench.NewLoadGen("http://fake.url")
+	loadgen, err := bench.NewLoadGen("http://fake.url")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,7 +59,7 @@ func TestNewLoadGenDefault(t *testing.T) {
 		t.Errorf("reqs: want %d, got %d", wantReqs, gotReqs)
 	}
 
-	wantUserAgent := "SimpleBench 0.0.1 Alpha"
+	wantUserAgent := "Bench 0.0.1 Alpha"
 	gotUserAgent := loadgen.GetHTTPUserAgent()
 	if wantUserAgent != gotUserAgent {
 		t.Errorf("user-agent: want %q, got %q", wantUserAgent, gotUserAgent)
@@ -77,11 +78,11 @@ func TestNewLoadGenCustom(t *testing.T) {
 	client := http.Client{
 		Timeout: 45,
 	}
-	loadgen, err := simplebench.NewLoadGen(
+	loadgen, err := bench.NewLoadGen(
 		"http://fake.url",
-		simplebench.WithRequests(10),
-		simplebench.WithHTTPUserAgent("CustomUserAgent"),
-		simplebench.WithHTTPClient(&client),
+		bench.WithRequests(10),
+		bench.WithHTTPUserAgent("CustomUserAgent"),
+		bench.WithHTTPClient(&client),
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -129,7 +130,7 @@ func TestURLParseInvalid(t *testing.T) {
 	}
 	for _, tC := range testCases {
 		t.Run(tC.desc, func(t *testing.T) {
-			_, err := simplebench.NewLoadGen(tC.url)
+			_, err := bench.NewLoadGen(tC.url)
 			if err == nil {
 				t.Error("error expected but not found")
 			}
@@ -140,7 +141,7 @@ func TestURLParseInvalid(t *testing.T) {
 
 func TestURLParseValid(t *testing.T) {
 	t.Parallel()
-	_, err := simplebench.NewLoadGen("http://fake.url")
+	_, err := bench.NewLoadGen("http://fake.url")
 	if err != nil {
 		t.Error("error not expected but found")
 	}
@@ -151,24 +152,28 @@ func TestRun(t *testing.T) {
 	server := httptest.NewTLSServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(rw, "HelloWorld")
 	}))
-	loadgen, err := simplebench.NewLoadGen(server.URL,
-		simplebench.WithRequests(1000),
-		simplebench.WithHTTPClient(server.Client()),
-		simplebench.WithStdout(io.Discard),
-		simplebench.WithStderr(io.Discard),
+	loadgen, err := bench.NewLoadGen(server.URL,
+		bench.WithRequests(1000),
+		bench.WithHTTPClient(server.Client()),
+		bench.WithStdout(io.Discard),
+		bench.WithStderr(io.Discard),
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
 	loadgen.Run()
-	wantStats := simplebench.Stats{
+	wantStats := bench.Stats{
 		Requests: 1000,
 		Success:  1000,
 		Failures: 0,
 	}
 	gotStats := loadgen.GetStats()
-	if !cmp.Equal(wantStats, gotStats) {
-		t.Error(cmp.Diff(wantStats, gotStats))
+	if !cmp.Equal(wantStats, gotStats, cmpopts.IgnoreFields(bench.Stats{}, "MU")) {
+		t.Error(cmp.Diff(wantStats, gotStats, cmpopts.IgnoreFields(bench.Stats{}, "MU")))
+	}
+
+	if gotStats.Requests != gotStats.Failures+gotStats.Success {
+		t.Errorf("want failures plus success %d got %d", gotStats.Requests, gotStats.Failures+gotStats.Success)
 	}
 
 	gotTotalTime := time.Since(loadgen.GetStartTime())
@@ -179,21 +184,24 @@ func TestRun(t *testing.T) {
 
 func TestRecordStats(t *testing.T) {
 	t.Parallel()
-	loadgen, err := simplebench.NewLoadGen("http://fake.url")
+	loadgen, err := bench.NewLoadGen("http://fake.url")
 	if err != nil {
 		t.Fatal(err)
 	}
 	loadgen.RecordRequest()
 	loadgen.RecordSuccess()
 	loadgen.RecordFailure()
-	want := simplebench.Stats{
-		Requests: 1,
-		Success:  1,
-		Failures: 1,
+	loadgen.RecordTime(100 * time.Millisecond)
+	loadgen.RecordTime(200 * time.Millisecond)
+	want := bench.Stats{
+		Requests:       1,
+		Success:        1,
+		Failures:       1,
+		ExecutionsTime: []time.Duration{100 * time.Millisecond, 200 * time.Millisecond},
 	}
 	got := loadgen.GetStats()
-	if !cmp.Equal(want, got) {
-		t.Error(cmp.Diff(want, got))
+	if !cmp.Equal(want, got, cmpopts.IgnoreFields(bench.Stats{}, "MU")) {
+		t.Error(cmp.Diff(want, got, cmpopts.IgnoreFields(bench.Stats{}, "MU")))
 	}
 }
 
@@ -202,10 +210,10 @@ func TestLog(t *testing.T) {
 
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
-	loadgen, err := simplebench.NewLoadGen(
+	loadgen, err := bench.NewLoadGen(
 		"http://fake.url",
-		simplebench.WithStdout(stdout),
-		simplebench.WithStderr(stderr),
+		bench.WithStdout(stdout),
+		bench.WithStderr(stderr),
 	)
 	if err != nil {
 		t.Fatal(err)
