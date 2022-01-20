@@ -12,21 +12,25 @@ import (
 )
 
 type Tester struct {
+	MU             *sync.Mutex
+	ExecutionsTime []time.Duration
 	client         *http.Client
 	requests       int
 	startAt        time.Time
-	stats          Stats
+	stats          stats
 	userAgent      string
 	url            string
 	stdout, stderr io.Writer
 	wg             *sync.WaitGroup
+	work           chan string
+}
+
+type stats struct {
+	Requests, Success, Failures uint64
 }
 
 type Stats struct {
 	Requests, Success, Failures uint64
-	Slowest                     time.Duration
-	MU                          *sync.Mutex
-	ExecutionsTime              []time.Duration
 }
 
 type Option func(*Tester)
@@ -48,18 +52,18 @@ func NewTester(URL string, opts ...Option) (*Tester, error) {
 		stdout:    os.Stdout,
 		stderr:    os.Stderr,
 		wg:        &sync.WaitGroup{},
-		stats: Stats{
-			Requests:       0,
-			Success:        0,
-			Failures:       0,
-			Slowest:        0,
-			MU:             &sync.Mutex{},
-			ExecutionsTime: []time.Duration{},
+		stats: stats{
+			Requests: 0,
+			Success:  0,
+			Failures: 0,
 		},
+		MU:             &sync.Mutex{},
+		ExecutionsTime: []time.Duration{},
 	}
 	for _, o := range opts {
 		o(tester)
 	}
+	tester.work = make(chan string, tester.requests)
 	return tester, nil
 }
 
@@ -106,25 +110,20 @@ func (lg Tester) GetStartTime() time.Time {
 }
 
 func (lg Tester) GetStats() Stats {
-	return lg.stats
+	return Stats{
+		Requests: lg.stats.Requests,
+		Success:  lg.stats.Success,
+		Failures: lg.stats.Failures,
+	}
 }
 
 func (lg Tester) GetRequests() int {
 	return lg.requests
 }
 
-func (lg *Tester) AddToWG(count int) {
-	lg.wg.Add(count)
-}
-
-func (lg *Tester) WaitForWG() {
-	lg.wg.Wait()
-}
-
 func (lg *Tester) DoRequest(url string) {
-	defer lg.wg.Done()
 	lg.RecordRequest()
-	req, err := http.NewRequest(http.MethodGet, lg.url, nil)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		lg.LogStdErr(err.Error())
 		lg.RecordFailure()
@@ -137,8 +136,8 @@ func (lg *Tester) DoRequest(url string) {
 	elapsedTime := time.Since(startTime)
 	lg.RecordTime(elapsedTime)
 	if err != nil {
-		lg.LogStdErr(err.Error())
-		lg.RecordFailure()
+		lg.LogStdErr("requeue")
+		lg.work <- url
 		return
 	}
 	if resp.StatusCode != http.StatusOK {
@@ -150,23 +149,25 @@ func (lg *Tester) DoRequest(url string) {
 }
 
 func (lg *Tester) Run() {
-	bencher := func() <-chan string {
-		work := make(chan string, lg.requests)
-		go func() {
-			defer close(work)
-			for x := 0; x < lg.requests; x++ {
-				work <- lg.url
-			}
-		}()
-		return work
-	}
-
-	work := bencher()
-	for url := range work {
-		lg.AddToWG(1)
-		go lg.DoRequest(url)
-	}
-	lg.WaitForWG()
+	lg.wg.Add(1)
+	go func() {
+		for x := 0; x < lg.requests; x++ {
+			lg.work <- lg.url
+		}
+		lg.wg.Done()
+	}()
+	go func() {
+		for range time.NewTicker(time.Millisecond).C {
+			url := <-lg.work
+			lg.wg.Add(1)
+			go func() {
+				lg.DoRequest(url)
+				lg.wg.Done()
+			}()
+		}
+	}()
+	time.Sleep(time.Second)
+	lg.wg.Wait()
 	lg.LogStdOut(fmt.Sprintf("URL %q benchmark is done\n", lg.url))
 	lg.LogStdOut(fmt.Sprintf("Time: %v Requests: %d Success: %d Failures: %d\n", time.Since(lg.startAt), lg.stats.Requests, lg.stats.Success, lg.stats.Failures))
 }
@@ -184,9 +185,9 @@ func (lg *Tester) RecordFailure() {
 }
 
 func (lg *Tester) RecordTime(executionTime time.Duration) {
-	lg.stats.MU.Lock()
-	defer lg.stats.MU.Unlock()
-	lg.stats.ExecutionsTime = append(lg.stats.ExecutionsTime, executionTime)
+	lg.MU.Lock()
+	defer lg.MU.Unlock()
+	lg.ExecutionsTime = append(lg.ExecutionsTime, executionTime)
 }
 
 func (lg Tester) LogStdOut(msg string) {

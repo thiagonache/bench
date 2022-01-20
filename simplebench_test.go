@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/thiagonache/bench"
 )
 
@@ -28,18 +27,16 @@ func TestNonOKStatusRecordedAsFailure(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	tester.AddToWG(1)
-	tester.DoRequest(server.URL)
+	tester.Run()
 	want := bench.Stats{
 		Requests: 1,
 		Success:  0,
 		Failures: 1,
 	}
 	got := tester.GetStats()
-	if !cmp.Equal(want, got, cmpopts.IgnoreFields(bench.Stats{}, "MU")) {
-		t.Error(cmp.Diff(want, got, cmpopts.IgnoreFields(bench.Stats{}, "MU")))
+	if !cmp.Equal(want, got) {
+		t.Error(cmp.Diff(want, got))
 	}
-
 }
 
 func TestNewTesterDefault(t *testing.T) {
@@ -130,7 +127,6 @@ func TestURLParseInvalid(t *testing.T) {
 			if err == nil {
 				t.Error("error expected but not found")
 			}
-
 		})
 	}
 }
@@ -149,10 +145,10 @@ func TestRun(t *testing.T) {
 		fmt.Fprintf(rw, "HelloWorld")
 	}))
 	tester, err := bench.NewTester(server.URL,
-		bench.WithRequests(1000),
+		bench.WithRequests(10000),
 		bench.WithHTTPClient(server.Client()),
 		bench.WithStdout(io.Discard),
-		bench.WithStderr(io.Discard),
+		// bench.WithStderr(io.Discard),
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -164,8 +160,8 @@ func TestRun(t *testing.T) {
 		Failures: 0,
 	}
 	gotStats := tester.GetStats()
-	if !cmp.Equal(wantStats, gotStats, cmpopts.IgnoreFields(bench.Stats{}, "MU")) {
-		t.Error(cmp.Diff(wantStats, gotStats, cmpopts.IgnoreFields(bench.Stats{}, "MU")))
+	if !cmp.Equal(wantStats, gotStats) {
+		t.Error(cmp.Diff(wantStats, gotStats))
 	}
 
 	if gotStats.Requests != gotStats.Failures+gotStats.Success {
@@ -190,14 +186,13 @@ func TestRecordStats(t *testing.T) {
 	tester.RecordTime(100 * time.Millisecond)
 	tester.RecordTime(200 * time.Millisecond)
 	want := bench.Stats{
-		Requests:       1,
-		Success:        1,
-		Failures:       1,
-		ExecutionsTime: []time.Duration{100 * time.Millisecond, 200 * time.Millisecond},
+		Requests: 1,
+		Success:  1,
+		Failures: 1,
 	}
 	got := tester.GetStats()
-	if !cmp.Equal(want, got, cmpopts.IgnoreFields(bench.Stats{}, "MU")) {
-		t.Error(cmp.Diff(want, got, cmpopts.IgnoreFields(bench.Stats{}, "MU")))
+	if !cmp.Equal(want, got) {
+		t.Error(cmp.Diff(want, got))
 	}
 }
 
