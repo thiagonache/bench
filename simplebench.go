@@ -39,7 +39,7 @@ func NewTester(URL string, opts ...Option) (*Tester, error) {
 	if u.Scheme == "" || u.Host == "" {
 		return nil, fmt.Errorf(fmt.Sprintf("Invalid URL %s", u))
 	}
-	loadgen := &Tester{
+	tester := &Tester{
 		client:    &http.Client{Timeout: 30 * time.Second},
 		requests:  1,
 		userAgent: "Bench 0.0.1 Alpha",
@@ -58,9 +58,9 @@ func NewTester(URL string, opts ...Option) (*Tester, error) {
 		},
 	}
 	for _, o := range opts {
-		o(loadgen)
+		o(tester)
 	}
-	return loadgen, nil
+	return tester, nil
 }
 
 func WithRequests(reqs int) Option {
