@@ -139,7 +139,7 @@ func TestURLParseValid(t *testing.T) {
 	t.Parallel()
 	_, err := bench.NewLoadGen("http://fake.url")
 	if err != nil {
-		t.Error("error not expected but found")
+		t.Errorf("error not expected but found: %q", err.Error())
 	}
 }
 
