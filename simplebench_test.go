@@ -61,7 +61,7 @@ func TestNewLoadGenDefault(t *testing.T) {
 		t.Errorf("user-agent: want %q, got %q", wantUserAgent, gotUserAgent)
 	}
 
-	wantHTTPClient := http.DefaultClient
+	wantHTTPClient := &http.Client{}
 	wantHTTPClient.Timeout = 30 * time.Second
 	gotHTTPClient := loadgen.GetHTTPClient()
 	if !cmp.Equal(wantHTTPClient, gotHTTPClient) {

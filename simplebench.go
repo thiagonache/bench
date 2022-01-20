@@ -42,7 +42,7 @@ func NewLoadGen(URL string, opts ...Option) (*LoadGen, error) {
 	loadgen := &LoadGen{
 		client:    &http.Client{Timeout: 30 * time.Second},
 		requests:  1,
-		userAgent: "SimpleBench 0.0.1 Alpha",
+		userAgent: "Bench 0.0.1 Alpha",
 		url:       URL,
 		startAt:   time.Now(),
 		stdout:    os.Stdout,
