@@ -17,9 +17,9 @@ func main() {
 		os.Exit(1)
 	}
 	url := os.Args[1]
-	loadgen, err := bench.NewTester(url, bench.WithRequests(reqs))
+	tester, err := bench.NewTester(url, bench.WithRequests(reqs))
 	if err != nil {
-		panic(fmt.Errorf("error creating NewLoadGen object: %v", err))
+		panic(fmt.Errorf("error creating NewTester object: %v", err))
 	}
-	loadgen.Run()
+	tester.Run()
 }
