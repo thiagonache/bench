@@ -20,7 +20,7 @@ func TestNonOKStatusRecordedAsFailure(t *testing.T) {
 	server := httptest.NewTLSServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		http.Error(rw, "ForceFailing", http.StatusTeapot)
 	}))
-	loadgen, err := bench.NewLoadGen(server.URL,
+	loadgen, err := bench.NewTester(server.URL,
 		bench.WithHTTPClient(server.Client()),
 		bench.WithStdout(io.Discard),
 		bench.WithStderr(io.Discard),
@@ -44,7 +44,7 @@ func TestNonOKStatusRecordedAsFailure(t *testing.T) {
 
 func TestNewLoadGenDefault(t *testing.T) {
 	t.Parallel()
-	loadgen, err := bench.NewLoadGen("http://fake.url")
+	loadgen, err := bench.NewTester("http://fake.url")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,7 +74,7 @@ func TestNewLoadGenCustom(t *testing.T) {
 	client := http.Client{
 		Timeout: 45,
 	}
-	loadgen, err := bench.NewLoadGen(
+	loadgen, err := bench.NewTester(
 		"http://fake.url",
 		bench.WithRequests(10),
 		bench.WithHTTPUserAgent("CustomUserAgent"),
@@ -126,7 +126,7 @@ func TestURLParseInvalid(t *testing.T) {
 	}
 	for _, tC := range testCases {
 		t.Run(tC.desc, func(t *testing.T) {
-			_, err := bench.NewLoadGen(tC.url)
+			_, err := bench.NewTester(tC.url)
 			if err == nil {
 				t.Error("error expected but not found")
 			}
@@ -137,7 +137,7 @@ func TestURLParseInvalid(t *testing.T) {
 
 func TestURLParseValid(t *testing.T) {
 	t.Parallel()
-	_, err := bench.NewLoadGen("http://fake.url")
+	_, err := bench.NewTester("http://fake.url")
 	if err != nil {
 		t.Errorf("error not expected but found: %q", err.Error())
 	}
@@ -148,7 +148,7 @@ func TestRun(t *testing.T) {
 	server := httptest.NewTLSServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(rw, "HelloWorld")
 	}))
-	loadgen, err := bench.NewLoadGen(server.URL,
+	loadgen, err := bench.NewTester(server.URL,
 		bench.WithRequests(1000),
 		bench.WithHTTPClient(server.Client()),
 		bench.WithStdout(io.Discard),
@@ -180,7 +180,7 @@ func TestRun(t *testing.T) {
 
 func TestRecordStats(t *testing.T) {
 	t.Parallel()
-	loadgen, err := bench.NewLoadGen("http://fake.url")
+	loadgen, err := bench.NewTester("http://fake.url")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -206,7 +206,7 @@ func TestLog(t *testing.T) {
 
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
-	loadgen, err := bench.NewLoadGen(
+	loadgen, err := bench.NewTester(
 		"http://fake.url",
 		bench.WithStdout(stdout),
 		bench.WithStderr(stderr),

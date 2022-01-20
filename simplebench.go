@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-type LoadGen struct {
+type Tester struct {
 	client         *http.Client
 	requests       int
 	startAt        time.Time
@@ -29,9 +29,9 @@ type Stats struct {
 	ExecutionsTime              []time.Duration
 }
 
-type Option func(*LoadGen)
+type Option func(*Tester)
 
-func NewLoadGen(URL string, opts ...Option) (*LoadGen, error) {
+func NewTester(URL string, opts ...Option) (*Tester, error) {
 	u, err := url.Parse(URL)
 	if err != nil {
 		return nil, err
@@ -39,7 +39,7 @@ func NewLoadGen(URL string, opts ...Option) (*LoadGen, error) {
 	if u.Scheme == "" || u.Host == "" {
 		return nil, fmt.Errorf(fmt.Sprintf("Invalid URL %s", u))
 	}
-	loadgen := &LoadGen{
+	loadgen := &Tester{
 		client:    &http.Client{Timeout: 30 * time.Second},
 		requests:  1,
 		userAgent: "Bench 0.0.1 Alpha",
@@ -64,64 +64,64 @@ func NewLoadGen(URL string, opts ...Option) (*LoadGen, error) {
 }
 
 func WithRequests(reqs int) Option {
-	return func(lg *LoadGen) {
+	return func(lg *Tester) {
 		lg.requests = reqs
 	}
 }
 
 func WithHTTPUserAgent(userAgent string) Option {
-	return func(lg *LoadGen) {
+	return func(lg *Tester) {
 		lg.userAgent = userAgent
 	}
 }
 
 func WithHTTPClient(client *http.Client) Option {
-	return func(lg *LoadGen) {
+	return func(lg *Tester) {
 		lg.client = client
 	}
 }
 
 func WithStdout(w io.Writer) Option {
-	return func(lg *LoadGen) {
+	return func(lg *Tester) {
 		lg.stdout = w
 	}
 }
 
 func WithStderr(w io.Writer) Option {
-	return func(lg *LoadGen) {
+	return func(lg *Tester) {
 		lg.stderr = w
 	}
 }
 
-func (lg LoadGen) GetHTTPUserAgent() string {
+func (lg Tester) GetHTTPUserAgent() string {
 	return lg.userAgent
 }
 
-func (lg LoadGen) GetHTTPClient() *http.Client {
+func (lg Tester) GetHTTPClient() *http.Client {
 	return lg.client
 }
 
-func (lg LoadGen) GetStartTime() time.Time {
+func (lg Tester) GetStartTime() time.Time {
 	return lg.startAt
 }
 
-func (lg LoadGen) GetStats() Stats {
+func (lg Tester) GetStats() Stats {
 	return lg.stats
 }
 
-func (lg LoadGen) GetRequests() int {
+func (lg Tester) GetRequests() int {
 	return lg.requests
 }
 
-func (lg *LoadGen) AddToWG(count int) {
+func (lg *Tester) AddToWG(count int) {
 	lg.wg.Add(count)
 }
 
-func (lg *LoadGen) WaitForWG() {
+func (lg *Tester) WaitForWG() {
 	lg.wg.Wait()
 }
 
-func (lg *LoadGen) DoRequest(url string) {
+func (lg *Tester) DoRequest(url string) {
 	defer lg.wg.Done()
 	lg.RecordRequest()
 	req, err := http.NewRequest(http.MethodGet, lg.url, nil)
@@ -149,7 +149,7 @@ func (lg *LoadGen) DoRequest(url string) {
 	lg.RecordSuccess()
 }
 
-func (lg *LoadGen) Run() {
+func (lg *Tester) Run() {
 	bencher := func() <-chan string {
 		work := make(chan string, lg.requests)
 		go func() {
@@ -171,28 +171,28 @@ func (lg *LoadGen) Run() {
 	lg.LogStdOut(fmt.Sprintf("Time: %v Requests: %d Success: %d Failures: %d\n", time.Since(lg.startAt), lg.stats.Requests, lg.stats.Success, lg.stats.Failures))
 }
 
-func (lg *LoadGen) RecordRequest() {
+func (lg *Tester) RecordRequest() {
 	atomic.AddUint64(&lg.stats.Requests, 1)
 }
 
-func (lg *LoadGen) RecordSuccess() {
+func (lg *Tester) RecordSuccess() {
 	atomic.AddUint64(&lg.stats.Success, 1)
 }
 
-func (lg *LoadGen) RecordFailure() {
+func (lg *Tester) RecordFailure() {
 	atomic.AddUint64(&lg.stats.Failures, 1)
 }
 
-func (lg *LoadGen) RecordTime(executionTime time.Duration) {
+func (lg *Tester) RecordTime(executionTime time.Duration) {
 	lg.stats.MU.Lock()
 	defer lg.stats.MU.Unlock()
 	lg.stats.ExecutionsTime = append(lg.stats.ExecutionsTime, executionTime)
 }
 
-func (lg LoadGen) LogStdOut(msg string) {
+func (lg Tester) LogStdOut(msg string) {
 	fmt.Fprint(lg.stdout, msg)
 }
 
-func (lg LoadGen) LogStdErr(msg string) {
+func (lg Tester) LogStdErr(msg string) {
 	fmt.Fprint(lg.stderr, msg)
 }
