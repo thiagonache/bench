@@ -141,22 +141,25 @@ func TestURLParseValid(t *testing.T) {
 
 func TestRun(t *testing.T) {
 	t.Parallel()
+	bench.Time = func() time.Time {
+		return time.Time{}
+	}
 	server := httptest.NewTLSServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(rw, "HelloWorld")
 	}))
 	tester, err := bench.NewTester(server.URL,
-		bench.WithRequests(10000),
+		bench.WithRequests(100),
 		bench.WithHTTPClient(server.Client()),
 		bench.WithStdout(io.Discard),
-		// bench.WithStderr(io.Discard),
+		bench.WithStderr(io.Discard),
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
 	tester.Run()
 	wantStats := bench.Stats{
-		Requests: 1000,
-		Success:  1000,
+		Requests: 100,
+		Success:  100,
 		Failures: 0,
 	}
 	gotStats := tester.GetStats()
@@ -185,10 +188,14 @@ func TestRecordStats(t *testing.T) {
 	tester.RecordFailure()
 	tester.RecordTime(100 * time.Millisecond)
 	tester.RecordTime(200 * time.Millisecond)
+	tester.RecordTime(100 * time.Millisecond)
+	tester.RecordTime(50 * time.Millisecond)
 	want := bench.Stats{
 		Requests: 1,
 		Success:  1,
 		Failures: 1,
+		Slowest:  200 * time.Millisecond,
+		Fastest:  50 * time.Millisecond,
 	}
 	got := tester.GetStats()
 	if !cmp.Equal(want, got) {
@@ -209,14 +216,14 @@ func TestLog(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := "this message goes to stdout"
+	want := "this message goes to stdout\n"
 	tester.LogStdOut("this message goes to stdout")
 	got := stdout.String()
 	if want != got {
 		t.Errorf("want message %q in stdout but found %q", want, got)
 	}
 
-	want = "this message goes to stderr"
+	want = "this message goes to stderr\n"
 	tester.LogStdErr("this message goes to stderr")
 	got = stderr.String()
 	if want != got {

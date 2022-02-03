@@ -17,7 +17,7 @@ type Tester struct {
 	client         *http.Client
 	requests       int
 	startAt        time.Time
-	stats          stats
+	stats          Stats
 	userAgent      string
 	url            string
 	stdout, stderr io.Writer
@@ -25,15 +25,16 @@ type Tester struct {
 	work           chan string
 }
 
-type stats struct {
-	Requests, Success, Failures uint64
-}
-
 type Stats struct {
 	Requests, Success, Failures uint64
+	Slowest, Fastest            time.Duration
 }
 
 type Option func(*Tester)
+
+var Time = func() time.Time {
+	return time.Now()
+}
 
 func NewTester(URL string, opts ...Option) (*Tester, error) {
 	u, err := url.Parse(URL)
@@ -44,19 +45,15 @@ func NewTester(URL string, opts ...Option) (*Tester, error) {
 		return nil, fmt.Errorf(fmt.Sprintf("Invalid URL %s", u))
 	}
 	tester := &Tester{
-		client:    &http.Client{Timeout: 30 * time.Second},
-		requests:  1,
-		userAgent: "Bench 0.0.1 Alpha",
-		url:       URL,
-		startAt:   time.Now(),
-		stdout:    os.Stdout,
-		stderr:    os.Stderr,
-		wg:        &sync.WaitGroup{},
-		stats: stats{
-			Requests: 0,
-			Success:  0,
-			Failures: 0,
-		},
+		client:         &http.Client{Timeout: 30 * time.Second},
+		requests:       1,
+		userAgent:      "Bench 0.0.1 Alpha",
+		url:            URL,
+		startAt:        time.Now(),
+		stdout:         os.Stdout,
+		stderr:         os.Stderr,
+		wg:             &sync.WaitGroup{},
+		stats:          Stats{},
 		MU:             &sync.Mutex{},
 		ExecutionsTime: []time.Duration{},
 	}
@@ -110,11 +107,7 @@ func (lg Tester) GetStartTime() time.Time {
 }
 
 func (lg Tester) GetStats() Stats {
-	return Stats{
-		Requests: lg.stats.Requests,
-		Success:  lg.stats.Success,
-		Failures: lg.stats.Failures,
-	}
+	return lg.stats
 }
 
 func (lg Tester) GetRequests() int {
@@ -131,15 +124,16 @@ func (lg *Tester) DoRequest(url string) {
 	}
 	req.Header.Set("user-agent", lg.GetHTTPUserAgent())
 	req.Header.Set("accept", "*/*")
-	startTime := time.Now()
+	startTime := Time()
 	resp, err := lg.client.Do(req)
-	elapsedTime := time.Since(startTime)
-	lg.RecordTime(elapsedTime)
+	endTime := Time()
+	elapsedTime := endTime.Sub(startTime)
 	if err != nil {
-		lg.LogStdErr("requeue")
-		lg.work <- url
+		lg.RecordFailure()
+		lg.LogStdErr(err.Error())
 		return
 	}
+	lg.RecordTime(elapsedTime)
 	if resp.StatusCode != http.StatusOK {
 		lg.LogStdErr(fmt.Sprintf("unexpected status code %d\n", resp.StatusCode))
 		lg.RecordFailure()
@@ -149,27 +143,25 @@ func (lg *Tester) DoRequest(url string) {
 }
 
 func (lg *Tester) Run() {
-	lg.wg.Add(1)
+	lg.wg.Add(lg.requests)
 	go func() {
 		for x := 0; x < lg.requests; x++ {
 			lg.work <- lg.url
 		}
-		lg.wg.Done()
 	}()
 	go func() {
 		for range time.NewTicker(time.Millisecond).C {
 			url := <-lg.work
-			lg.wg.Add(1)
 			go func() {
 				lg.DoRequest(url)
 				lg.wg.Done()
 			}()
 		}
 	}()
-	time.Sleep(time.Second)
 	lg.wg.Wait()
 	lg.LogStdOut(fmt.Sprintf("URL %q benchmark is done\n", lg.url))
 	lg.LogStdOut(fmt.Sprintf("Time: %v Requests: %d Success: %d Failures: %d\n", time.Since(lg.startAt), lg.stats.Requests, lg.stats.Success, lg.stats.Failures))
+	lg.LogStdOut(fmt.Sprintf("Fastest: %v Slowest: %v\n", lg.stats.Fastest, lg.stats.Slowest))
 }
 
 func (lg *Tester) RecordRequest() {
@@ -185,15 +177,22 @@ func (lg *Tester) RecordFailure() {
 }
 
 func (lg *Tester) RecordTime(executionTime time.Duration) {
-	lg.MU.Lock()
-	defer lg.MU.Unlock()
+	if executionTime > lg.stats.Slowest {
+		lg.stats.Slowest = executionTime
+	}
+	if lg.stats.Fastest.Microseconds() == 0 {
+		lg.stats.Fastest = executionTime
+	}
+	if executionTime < lg.stats.Fastest {
+		lg.stats.Fastest = executionTime
+	}
 	lg.ExecutionsTime = append(lg.ExecutionsTime, executionTime)
 }
 
 func (lg Tester) LogStdOut(msg string) {
-	fmt.Fprint(lg.stdout, msg)
+	fmt.Fprint(lg.stdout, msg, "\n")
 }
 
 func (lg Tester) LogStdErr(msg string) {
-	fmt.Fprint(lg.stderr, msg)
+	fmt.Fprint(lg.stderr, msg, "\n")
 }
