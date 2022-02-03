@@ -127,12 +127,12 @@ func (lg *Tester) DoRequest(url string) {
 	startTime := Time()
 	resp, err := lg.client.Do(req)
 	endTime := Time()
-	elapsedTime := endTime.Sub(startTime)
 	if err != nil {
 		lg.RecordFailure()
 		lg.LogStdErr(err.Error())
 		return
 	}
+	elapsedTime := endTime.Sub(startTime)
 	lg.RecordTime(elapsedTime)
 	if resp.StatusCode != http.StatusOK {
 		lg.LogStdErr(fmt.Sprintf("unexpected status code %d\n", resp.StatusCode))
