@@ -39,7 +39,7 @@ func TestNonOKStatusRecordedAsFailure(t *testing.T) {
 	}
 }
 
-func TestNewTesterDefault(t *testing.T) {
+func TestNewTesterRequests(t *testing.T) {
 	t.Parallel()
 	tester, err := bench.NewTester("http://fake.url")
 	if err != nil {
@@ -52,10 +52,53 @@ func TestNewTesterDefault(t *testing.T) {
 		t.Errorf("reqs: want %d, got %d", wantReqs, gotReqs)
 	}
 
+	tester, err = bench.NewTester(
+		"http://fake.url",
+		bench.WithRequests(10),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	wantReqs = 10
+	gotReqs = tester.GetRequests()
+	if wantReqs != gotReqs {
+		t.Errorf("reqs: want %d, got %d", wantReqs, gotReqs)
+	}
+
+}
+
+func TestNewTesterHTTPUserAgent(t *testing.T) {
+	t.Parallel()
+	tester, err := bench.NewTester("http://fake.url")
+	if err != nil {
+		t.Fatal(err)
+	}
 	wantUserAgent := "Bench 0.0.1 Alpha"
 	gotUserAgent := tester.GetHTTPUserAgent()
 	if wantUserAgent != gotUserAgent {
 		t.Errorf("user-agent: want %q, got %q", wantUserAgent, gotUserAgent)
+	}
+
+	tester, err = bench.NewTester(
+		"http://fake.url",
+		bench.WithHTTPUserAgent("CustomUserAgent"),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantUserAgent = "CustomUserAgent"
+	gotUserAgent = tester.GetHTTPUserAgent()
+	if wantUserAgent != gotUserAgent {
+		t.Errorf("user-agent: want %q, got %q", wantUserAgent, gotUserAgent)
+	}
+}
+
+func TestNewTesterHTTPClient(t *testing.T) {
+	t.Parallel()
+	tester, err := bench.NewTester("http://fake.url")
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	wantHTTPClient := &http.Client{}
@@ -64,39 +107,20 @@ func TestNewTesterDefault(t *testing.T) {
 	if !cmp.Equal(wantHTTPClient, gotHTTPClient) {
 		t.Errorf(cmp.Diff(wantHTTPClient, gotHTTPClient))
 	}
-}
 
-func TestNewTesterCustom(t *testing.T) {
-	t.Parallel()
-	client := http.Client{
-		Timeout: 45 * time.Second,
-	}
-	tester, err := bench.NewTester(
+	tester, err = bench.NewTester(
 		"http://fake.url",
-		bench.WithRequests(10),
-		bench.WithHTTPUserAgent("CustomUserAgent"),
-		bench.WithHTTPClient(&client),
+		bench.WithHTTPClient(&http.Client{
+			Timeout: 45 * time.Second,
+		}),
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	wantReqs := 10
-	gotReqs := tester.GetRequests()
-	if wantReqs != gotReqs {
-		t.Errorf("reqs: want %d, got %d", wantReqs, gotReqs)
-	}
-
-	wantUserAgent := "CustomUserAgent"
-	gotUserAgent := tester.GetHTTPUserAgent()
-	if wantUserAgent != gotUserAgent {
-		t.Errorf("user-agent: want %q, got %q", wantUserAgent, gotUserAgent)
-	}
-
-	wantHTTPClient := &http.Client{
+	wantHTTPClient = &http.Client{
 		Timeout: 45 * time.Second,
 	}
-	gotHTTPClient := tester.GetHTTPClient()
+	gotHTTPClient = tester.GetHTTPClient()
 	if !cmp.Equal(wantHTTPClient, gotHTTPClient) {
 		t.Errorf(cmp.Diff(wantHTTPClient, gotHTTPClient))
 	}
