@@ -84,93 +84,93 @@ func WithStderr(w io.Writer) Option {
 	}
 }
 
-func (lg Tester) GetHTTPUserAgent() string {
-	return lg.userAgent
+func (t Tester) GetHTTPUserAgent() string {
+	return t.userAgent
 }
 
-func (lg Tester) GetHTTPClient() *http.Client {
-	return lg.client
+func (t Tester) GetHTTPClient() *http.Client {
+	return t.client
 }
 
-func (lg Tester) GetStartTime() time.Time {
-	return lg.startAt
+func (t Tester) GetStartTime() time.Time {
+	return t.startAt
 }
 
-func (lg Tester) GetStats() Stats {
-	return lg.stats
+func (t Tester) GetStats() Stats {
+	return t.stats
 }
 
-func (lg Tester) GetRequests() int {
-	return lg.requests
+func (t Tester) GetRequests() int {
+	return t.requests
 }
 
-func (lg *Tester) DoRequest(url string) {
-	lg.RecordRequest()
+func (t *Tester) DoRequest(url string) {
+	t.RecordRequest()
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
-		lg.LogStdErr(err.Error())
-		lg.RecordFailure()
+		t.LogStdErr(err.Error())
+		t.RecordFailure()
 		return
 	}
-	req.Header.Set("user-agent", lg.GetHTTPUserAgent())
+	req.Header.Set("user-agent", t.GetHTTPUserAgent())
 	req.Header.Set("accept", "*/*")
 	startTime := Time()
-	resp, err := lg.client.Do(req)
+	resp, err := t.client.Do(req)
 	endTime := Time()
 	if err != nil {
-		lg.RecordFailure()
-		lg.LogStdErr(err.Error())
+		t.RecordFailure()
+		t.LogStdErr(err.Error())
 		return
 	}
 	elapsedTime := endTime.Sub(startTime)
-	lg.TimeRecorder.RecordTime(elapsedTime)
+	t.TimeRecorder.RecordTime(elapsedTime)
 	if resp.StatusCode != http.StatusOK {
-		lg.LogStdErr(fmt.Sprintf("unexpected status code %d\n", resp.StatusCode))
-		lg.RecordFailure()
+		t.LogStdErr(fmt.Sprintf("unexpected status code %d\n", resp.StatusCode))
+		t.RecordFailure()
 		return
 	}
-	lg.RecordSuccess()
+	t.RecordSuccess()
 }
 
-func (lg *Tester) Run() {
-	lg.wg.Add(lg.requests)
+func (t *Tester) Run() {
+	t.wg.Add(t.requests)
 	go func() {
 		for range time.NewTicker(time.Millisecond).C {
-			url := <-lg.work
+			url := <-t.work
 			go func() {
-				lg.DoRequest(url)
-				lg.wg.Done()
+				t.DoRequest(url)
+				t.wg.Done()
 			}()
 		}
 	}()
-	for x := 0; x < lg.requests; x++ {
-		lg.work <- lg.url
+	for x := 0; x < t.requests; x++ {
+		t.work <- t.url
 	}
-	lg.wg.Wait()
-	lg.SetMaxMin()
-	lg.LogStdOut(fmt.Sprintf("URL %q benchmark is done\n", lg.url))
-	lg.LogStdOut(fmt.Sprintf("Time: %v Requests: %d Success: %d Failures: %d\n", time.Since(lg.startAt), lg.stats.Requests, lg.stats.Success, lg.stats.Failures))
-	lg.LogStdOut(fmt.Sprintf("Fastest: %v Slowest: %v\n", lg.stats.Fastest, lg.stats.Slowest))
+	t.wg.Wait()
+	t.SetMaxMin()
+	t.LogStdOut(fmt.Sprintf("URL %q benchmark is done\n", t.url))
+	t.LogStdOut(fmt.Sprintf("Time: %v Requests: %d Success: %d Failures: %d\n", time.Since(t.startAt), t.stats.Requests, t.stats.Success, t.stats.Failures))
+	t.LogStdOut(fmt.Sprintf("Fastest: %v Slowest: %v\n", t.stats.Fastest, t.stats.Slowest))
 }
 
-func (lg *Tester) RecordRequest() {
-	atomic.AddUint64(&lg.stats.Requests, 1)
+func (t *Tester) RecordRequest() {
+	atomic.AddUint64(&t.stats.Requests, 1)
 }
 
-func (lg *Tester) RecordSuccess() {
-	atomic.AddUint64(&lg.stats.Success, 1)
+func (t *Tester) RecordSuccess() {
+	atomic.AddUint64(&t.stats.Success, 1)
 }
 
-func (lg *Tester) RecordFailure() {
-	atomic.AddUint64(&lg.stats.Failures, 1)
+func (t *Tester) RecordFailure() {
+	atomic.AddUint64(&t.stats.Failures, 1)
 }
 
-func (lg Tester) LogStdOut(msg string) {
-	fmt.Fprint(lg.stdout, msg, "\n")
+func (t Tester) LogStdOut(msg string) {
+	fmt.Fprint(t.stdout, msg, "\n")
 }
 
-func (lg Tester) LogStdErr(msg string) {
-	fmt.Fprint(lg.stderr, msg, "\n")
+func (t Tester) LogStdErr(msg string) {
+	fmt.Fprint(t.stderr, msg, "\n")
 }
 
 type Stats struct {
@@ -195,14 +195,14 @@ func (t *TimeRecorder) RecordTime(executionTime time.Duration) {
 	t.ExecutionsTime = append(t.ExecutionsTime, executionTime)
 }
 
-func (lg *Tester) SetMaxMin() {
-	lg.stats.Fastest = lg.TimeRecorder.ExecutionsTime[0]
-	lg.stats.Slowest = lg.TimeRecorder.ExecutionsTime[0]
-	for _, v := range lg.TimeRecorder.ExecutionsTime {
-		if v < lg.stats.Fastest {
-			lg.stats.Fastest = v
-		} else if v > lg.stats.Slowest {
-			lg.stats.Slowest = v
+func (t *Tester) SetMaxMin() {
+	t.stats.Fastest = t.TimeRecorder.ExecutionsTime[0]
+	t.stats.Slowest = t.TimeRecorder.ExecutionsTime[0]
+	for _, v := range t.TimeRecorder.ExecutionsTime {
+		if v < t.stats.Fastest {
+			t.stats.Fastest = v
+		} else if v > t.stats.Slowest {
+			t.stats.Slowest = v
 		}
 	}
 }
