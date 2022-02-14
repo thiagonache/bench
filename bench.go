@@ -181,6 +181,18 @@ func (t Tester) LogFStdErr(msg string, opts ...interface{}) {
 	fmt.Fprintf(t.stderr, msg, opts...)
 }
 
+func (t *Tester) SetMaxMin() {
+	t.stats.Fastest = t.TimeRecorder.ExecutionsTime[0]
+	t.stats.Slowest = t.TimeRecorder.ExecutionsTime[0]
+	for _, v := range t.TimeRecorder.ExecutionsTime {
+		if v < t.stats.Fastest {
+			t.stats.Fastest = v
+		} else if v > t.stats.Slowest {
+			t.stats.Slowest = v
+		}
+	}
+}
+
 type Stats struct {
 	Requests, Success, Failures uint64
 	Slowest, Fastest            time.Duration
@@ -201,16 +213,4 @@ func (t *TimeRecorder) RecordTime(executionTime time.Duration) {
 	t.MU.Lock()
 	defer t.MU.Unlock()
 	t.ExecutionsTime = append(t.ExecutionsTime, executionTime)
-}
-
-func (t *Tester) SetMaxMin() {
-	t.stats.Fastest = t.TimeRecorder.ExecutionsTime[0]
-	t.stats.Slowest = t.TimeRecorder.ExecutionsTime[0]
-	for _, v := range t.TimeRecorder.ExecutionsTime {
-		if v < t.stats.Fastest {
-			t.stats.Fastest = v
-		} else if v > t.stats.Slowest {
-			t.stats.Slowest = v
-		}
-	}
 }
