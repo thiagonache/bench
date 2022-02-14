@@ -217,15 +217,41 @@ func TestLog(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := "this message goes to stdout\n"
+	want := "this message goes to stdout"
 	tester.LogStdOut("this message goes to stdout")
 	got := stdout.String()
 	if want != got {
 		t.Errorf("want message %q in stdout but found %q", want, got)
 	}
 
-	want = "this message goes to stderr\n"
+	want = "this message goes to stderr"
 	tester.LogStdErr("this message goes to stderr")
+	got = stderr.String()
+	if want != got {
+		t.Errorf("want message %q in stderr but found %q", want, got)
+	}
+}
+
+func TestLogf(t *testing.T) {
+	t.Parallel()
+	stdout := &bytes.Buffer{}
+	stderr := &bytes.Buffer{}
+	tester, err := bench.NewTester(
+		"http://fake.url",
+		bench.WithStdout(stdout),
+		bench.WithStderr(stderr),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "this message goes to stdout"
+	tester.LogFStdOut("this %s goes to %s", "message", "stdout")
+	got := stdout.String()
+	if want != got {
+		t.Errorf("want message %q in stdout but found %q", want, got)
+	}
+	want = "this message goes to stderr"
+	tester.LogFStdErr("this %s goes to %s", "message", "stderr")
 	got = stderr.String()
 	if want != got {
 		t.Errorf("want message %q in stderr but found %q", want, got)

@@ -125,7 +125,7 @@ func (t *Tester) DoRequest(url string) {
 	elapsedTime := endTime.Sub(startTime)
 	t.TimeRecorder.RecordTime(elapsedTime)
 	if resp.StatusCode != http.StatusOK {
-		t.LogStdErr(fmt.Sprintf("unexpected status code %d\n", resp.StatusCode))
+		t.LogFStdErr("unexpected status code %d\n", resp.StatusCode)
 		t.RecordFailure()
 		return
 	}
@@ -148,9 +148,9 @@ func (t *Tester) Run() {
 	}
 	t.wg.Wait()
 	t.SetMaxMin()
-	t.LogStdOut(fmt.Sprintf("URL %q benchmark is done\n", t.url))
-	t.LogStdOut(fmt.Sprintf("Time: %v Requests: %d Success: %d Failures: %d\n", time.Since(t.startAt), t.stats.Requests, t.stats.Success, t.stats.Failures))
-	t.LogStdOut(fmt.Sprintf("Fastest: %v Slowest: %v\n", t.stats.Fastest, t.stats.Slowest))
+	t.LogFStdOut("URL %q benchmark is done\n", t.url)
+	t.LogFStdOut("Time: %v Requests: %d Success: %d Failures: %d\n", time.Since(t.startAt), t.stats.Requests, t.stats.Success, t.stats.Failures)
+	t.LogFStdOut("Fastest: %v Slowest: %v\n", t.stats.Fastest, t.stats.Slowest)
 }
 
 func (t *Tester) RecordRequest() {
@@ -166,11 +166,19 @@ func (t *Tester) RecordFailure() {
 }
 
 func (t Tester) LogStdOut(msg string) {
-	fmt.Fprint(t.stdout, msg, "\n")
+	fmt.Fprint(t.stdout, msg)
 }
 
 func (t Tester) LogStdErr(msg string) {
-	fmt.Fprint(t.stderr, msg, "\n")
+	fmt.Fprint(t.stderr, msg)
+}
+
+func (t Tester) LogFStdOut(msg string, opts ...interface{}) {
+	fmt.Fprintf(t.stdout, msg, opts...)
+}
+
+func (t Tester) LogFStdErr(msg string, opts ...interface{}) {
+	fmt.Fprintf(t.stderr, msg, opts...)
 }
 
 type Stats struct {
