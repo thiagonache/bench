@@ -69,7 +69,7 @@ func TestNewTesterDefault(t *testing.T) {
 func TestNewTesterCustom(t *testing.T) {
 	t.Parallel()
 	client := http.Client{
-		Timeout: 45,
+		Timeout: 45 * time.Second,
 	}
 	tester, err := bench.NewTester(
 		"http://fake.url",
@@ -94,7 +94,7 @@ func TestNewTesterCustom(t *testing.T) {
 	}
 
 	wantHTTPClient := &http.Client{
-		Timeout: 45,
+		Timeout: 45 * time.Second,
 	}
 	gotHTTPClient := tester.GetHTTPClient()
 	if !cmp.Equal(wantHTTPClient, gotHTTPClient) {
@@ -186,10 +186,10 @@ func TestRecordStats(t *testing.T) {
 	tester.RecordRequest()
 	tester.RecordSuccess()
 	tester.RecordFailure()
-	tester.RecordTime(100 * time.Millisecond)
-	tester.RecordTime(200 * time.Millisecond)
-	tester.RecordTime(100 * time.Millisecond)
-	tester.RecordTime(50 * time.Millisecond)
+	tester.TimeRecorder.RecordTime(100 * time.Millisecond)
+	tester.TimeRecorder.RecordTime(200 * time.Millisecond)
+	tester.TimeRecorder.RecordTime(100 * time.Millisecond)
+	tester.TimeRecorder.RecordTime(50 * time.Millisecond)
 	want := bench.Stats{
 		Requests: 1,
 		Success:  1,

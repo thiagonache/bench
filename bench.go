@@ -12,8 +12,6 @@ import (
 )
 
 type Tester struct {
-	MU             *sync.Mutex
-	ExecutionsTime []time.Duration
 	client         *http.Client
 	requests       int
 	startAt        time.Time
@@ -23,17 +21,7 @@ type Tester struct {
 	stdout, stderr io.Writer
 	wg             *sync.WaitGroup
 	work           chan string
-}
-
-type Stats struct {
-	Requests, Success, Failures uint64
-	Slowest, Fastest            time.Duration
-}
-
-type Option func(*Tester)
-
-var Time = func() time.Time {
-	return time.Now()
+	TimeRecorder   TimeRecorder
 }
 
 func NewTester(URL string, opts ...Option) (*Tester, error) {
@@ -42,20 +30,22 @@ func NewTester(URL string, opts ...Option) (*Tester, error) {
 		return nil, err
 	}
 	if u.Scheme == "" || u.Host == "" {
-		return nil, fmt.Errorf(fmt.Sprintf("Invalid URL %s", u))
+		return nil, fmt.Errorf("invalid URL %s", u)
 	}
 	tester := &Tester{
-		client:         &http.Client{Timeout: 30 * time.Second},
-		requests:       1,
-		userAgent:      "Bench 0.0.1 Alpha",
-		url:            URL,
-		startAt:        time.Now(),
-		stdout:         os.Stdout,
-		stderr:         os.Stderr,
-		wg:             &sync.WaitGroup{},
-		stats:          Stats{},
-		MU:             &sync.Mutex{},
-		ExecutionsTime: []time.Duration{},
+		client:    &http.Client{Timeout: 30 * time.Second},
+		requests:  1,
+		userAgent: "Bench 0.0.1 Alpha",
+		url:       URL,
+		startAt:   time.Now(),
+		stdout:    os.Stdout,
+		stderr:    os.Stderr,
+		wg:        &sync.WaitGroup{},
+		stats:     Stats{},
+		TimeRecorder: TimeRecorder{
+			MU:             &sync.Mutex{},
+			ExecutionsTime: []time.Duration{},
+		},
 	}
 	for _, o := range opts {
 		o(tester)
@@ -107,6 +97,15 @@ func (lg Tester) GetStartTime() time.Time {
 }
 
 func (lg Tester) GetStats() Stats {
+	lg.stats.Fastest = lg.TimeRecorder.ExecutionsTime[0]
+	lg.stats.Slowest = lg.TimeRecorder.ExecutionsTime[0]
+	for _, v := range lg.TimeRecorder.ExecutionsTime {
+		if v < lg.stats.Fastest {
+			lg.stats.Fastest = v
+		} else if v > lg.stats.Slowest {
+			lg.stats.Slowest = v
+		}
+	}
 	return lg.stats
 }
 
@@ -133,7 +132,7 @@ func (lg *Tester) DoRequest(url string) {
 		return
 	}
 	elapsedTime := endTime.Sub(startTime)
-	lg.RecordTime(elapsedTime)
+	lg.TimeRecorder.RecordTime(elapsedTime)
 	if resp.StatusCode != http.StatusOK {
 		lg.LogStdErr(fmt.Sprintf("unexpected status code %d\n", resp.StatusCode))
 		lg.RecordFailure()
@@ -145,11 +144,6 @@ func (lg *Tester) DoRequest(url string) {
 func (lg *Tester) Run() {
 	lg.wg.Add(lg.requests)
 	go func() {
-		for x := 0; x < lg.requests; x++ {
-			lg.work <- lg.url
-		}
-	}()
-	go func() {
 		for range time.NewTicker(time.Millisecond).C {
 			url := <-lg.work
 			go func() {
@@ -158,10 +152,14 @@ func (lg *Tester) Run() {
 			}()
 		}
 	}()
+	for x := 0; x < lg.requests; x++ {
+		lg.work <- lg.url
+	}
 	lg.wg.Wait()
+	stats := lg.GetStats()
 	lg.LogStdOut(fmt.Sprintf("URL %q benchmark is done\n", lg.url))
 	lg.LogStdOut(fmt.Sprintf("Time: %v Requests: %d Success: %d Failures: %d\n", time.Since(lg.startAt), lg.stats.Requests, lg.stats.Success, lg.stats.Failures))
-	lg.LogStdOut(fmt.Sprintf("Fastest: %v Slowest: %v\n", lg.stats.Fastest, lg.stats.Slowest))
+	lg.LogStdOut(fmt.Sprintf("Fastest: %v Slowest: %v\n", stats.Fastest, stats.Slowest))
 }
 
 func (lg *Tester) RecordRequest() {
@@ -176,23 +174,32 @@ func (lg *Tester) RecordFailure() {
 	atomic.AddUint64(&lg.stats.Failures, 1)
 }
 
-func (lg *Tester) RecordTime(executionTime time.Duration) {
-	if executionTime > lg.stats.Slowest {
-		lg.stats.Slowest = executionTime
-	}
-	if lg.stats.Fastest.Microseconds() == 0 {
-		lg.stats.Fastest = executionTime
-	}
-	if executionTime < lg.stats.Fastest {
-		lg.stats.Fastest = executionTime
-	}
-	lg.ExecutionsTime = append(lg.ExecutionsTime, executionTime)
-}
-
 func (lg Tester) LogStdOut(msg string) {
 	fmt.Fprint(lg.stdout, msg, "\n")
 }
 
 func (lg Tester) LogStdErr(msg string) {
 	fmt.Fprint(lg.stderr, msg, "\n")
+}
+
+type Stats struct {
+	Requests, Success, Failures uint64
+	Slowest, Fastest            time.Duration
+}
+
+type Option func(*Tester)
+
+var Time = func() time.Time {
+	return time.Now()
+}
+
+type TimeRecorder struct {
+	MU             *sync.Mutex
+	ExecutionsTime []time.Duration
+}
+
+func (t *TimeRecorder) RecordTime(executionTime time.Duration) {
+	t.MU.Lock()
+	defer t.MU.Unlock()
+	t.ExecutionsTime = append(t.ExecutionsTime, executionTime)
 }
