@@ -150,7 +150,7 @@ func (t *Tester) Run() {
 		t.work <- t.url
 	}
 	t.wg.Wait()
-	t.SetMaxMin()
+	t.SetFastestAndSlowest()
 	t.LogFStdOut("URL %q benchmark is done\n", t.url)
 	t.LogFStdOut("Time: %v Requests: %d Success: %d Failures: %d\n", time.Since(t.startAt), t.stats.Requests, t.stats.Success, t.stats.Failures)
 	t.LogFStdOut("Fastest: %v Slowest: %v\n", t.stats.Fastest, t.stats.Slowest)
@@ -184,7 +184,7 @@ func (t Tester) LogFStdErr(msg string, opts ...interface{}) {
 	fmt.Fprintf(t.stderr, msg, opts...)
 }
 
-func (t *Tester) SetMaxMin() {
+func (t *Tester) SetFastestAndSlowest() {
 	t.stats.Fastest = t.TimeRecorder.ExecutionsTime[0]
 	t.stats.Slowest = t.TimeRecorder.ExecutionsTime[0]
 	for _, v := range t.TimeRecorder.ExecutionsTime {

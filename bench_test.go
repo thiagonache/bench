@@ -227,7 +227,7 @@ func TestRecordStats(t *testing.T) {
 		Slowest:  200 * time.Millisecond,
 		Fastest:  50 * time.Millisecond,
 	}
-	tester.SetMaxMin()
+	tester.SetFastestAndSlowest()
 	got := tester.GetStats()
 	if !cmp.Equal(want, got) {
 		t.Error(cmp.Diff(want, got))
