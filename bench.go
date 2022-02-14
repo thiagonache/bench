@@ -50,6 +50,9 @@ func NewTester(URL string, opts ...Option) (*Tester, error) {
 	for _, o := range opts {
 		o(tester)
 	}
+	if tester.requests == 0 {
+		return nil, fmt.Errorf("%d is invalid number of requests", tester.requests)
+	}
 	tester.work = make(chan string, tester.requests)
 	return tester, nil
 }

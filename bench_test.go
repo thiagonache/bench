@@ -65,9 +65,15 @@ func TestNewTesterRequests(t *testing.T) {
 	if wantReqs != gotReqs {
 		t.Errorf("reqs: want %d, got %d", wantReqs, gotReqs)
 	}
-
 }
 
+func TestNewTesterRequestsInvalid(t *testing.T) {
+	t.Parallel()
+	_, err := bench.NewTester("http://fake.url", bench.WithRequests(0))
+	if err == nil {
+		t.Fatal("Error expected but not found")
+	}
+}
 func TestNewTesterHTTPUserAgent(t *testing.T) {
 	t.Parallel()
 	tester, err := bench.NewTester("http://fake.url")
