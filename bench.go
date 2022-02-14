@@ -97,15 +97,6 @@ func (lg Tester) GetStartTime() time.Time {
 }
 
 func (lg Tester) GetStats() Stats {
-	lg.stats.Fastest = lg.TimeRecorder.ExecutionsTime[0]
-	lg.stats.Slowest = lg.TimeRecorder.ExecutionsTime[0]
-	for _, v := range lg.TimeRecorder.ExecutionsTime {
-		if v < lg.stats.Fastest {
-			lg.stats.Fastest = v
-		} else if v > lg.stats.Slowest {
-			lg.stats.Slowest = v
-		}
-	}
 	return lg.stats
 }
 
@@ -156,10 +147,10 @@ func (lg *Tester) Run() {
 		lg.work <- lg.url
 	}
 	lg.wg.Wait()
-	stats := lg.GetStats()
+	lg.SetMaxMin()
 	lg.LogStdOut(fmt.Sprintf("URL %q benchmark is done\n", lg.url))
 	lg.LogStdOut(fmt.Sprintf("Time: %v Requests: %d Success: %d Failures: %d\n", time.Since(lg.startAt), lg.stats.Requests, lg.stats.Success, lg.stats.Failures))
-	lg.LogStdOut(fmt.Sprintf("Fastest: %v Slowest: %v\n", stats.Fastest, stats.Slowest))
+	lg.LogStdOut(fmt.Sprintf("Fastest: %v Slowest: %v\n", lg.stats.Fastest, lg.stats.Slowest))
 }
 
 func (lg *Tester) RecordRequest() {
@@ -202,4 +193,16 @@ func (t *TimeRecorder) RecordTime(executionTime time.Duration) {
 	t.MU.Lock()
 	defer t.MU.Unlock()
 	t.ExecutionsTime = append(t.ExecutionsTime, executionTime)
+}
+
+func (lg *Tester) SetMaxMin() {
+	lg.stats.Fastest = lg.TimeRecorder.ExecutionsTime[0]
+	lg.stats.Slowest = lg.TimeRecorder.ExecutionsTime[0]
+	for _, v := range lg.TimeRecorder.ExecutionsTime {
+		if v < lg.stats.Fastest {
+			lg.stats.Fastest = v
+		} else if v > lg.stats.Slowest {
+			lg.stats.Slowest = v
+		}
+	}
 }
