@@ -33,7 +33,7 @@ func TestNonOKStatusRecordedAsFailure(t *testing.T) {
 		Success:  0,
 		Failures: 1,
 	}
-	got := tester.GetStats()
+	got := tester.Stats()
 	if !cmp.Equal(want, got) {
 		t.Error(cmp.Diff(want, got))
 	}
@@ -47,7 +47,7 @@ func TestNewTesterRequests(t *testing.T) {
 	}
 
 	wantReqs := 1
-	gotReqs := tester.GetRequests()
+	gotReqs := tester.Requests()
 	if wantReqs != gotReqs {
 		t.Errorf("reqs: want %d, got %d", wantReqs, gotReqs)
 	}
@@ -61,7 +61,7 @@ func TestNewTesterRequests(t *testing.T) {
 	}
 
 	wantReqs = 10
-	gotReqs = tester.GetRequests()
+	gotReqs = tester.Requests()
 	if wantReqs != gotReqs {
 		t.Errorf("reqs: want %d, got %d", wantReqs, gotReqs)
 	}
@@ -81,7 +81,7 @@ func TestNewTesterHTTPUserAgent(t *testing.T) {
 		t.Fatal(err)
 	}
 	wantUserAgent := "Bench 0.0.1 Alpha"
-	gotUserAgent := tester.GetHTTPUserAgent()
+	gotUserAgent := tester.HTTPUserAgent()
 	if wantUserAgent != gotUserAgent {
 		t.Errorf("user-agent: want %q, got %q", wantUserAgent, gotUserAgent)
 	}
@@ -94,7 +94,7 @@ func TestNewTesterHTTPUserAgent(t *testing.T) {
 		t.Fatal(err)
 	}
 	wantUserAgent = "CustomUserAgent"
-	gotUserAgent = tester.GetHTTPUserAgent()
+	gotUserAgent = tester.HTTPUserAgent()
 	if wantUserAgent != gotUserAgent {
 		t.Errorf("user-agent: want %q, got %q", wantUserAgent, gotUserAgent)
 	}
@@ -109,7 +109,7 @@ func TestNewTesterHTTPClient(t *testing.T) {
 
 	wantHTTPClient := &http.Client{}
 	wantHTTPClient.Timeout = 30 * time.Second
-	gotHTTPClient := tester.GetHTTPClient()
+	gotHTTPClient := tester.HTTPClient()
 	if !cmp.Equal(wantHTTPClient, gotHTTPClient) {
 		t.Errorf(cmp.Diff(wantHTTPClient, gotHTTPClient))
 	}
@@ -126,7 +126,7 @@ func TestNewTesterHTTPClient(t *testing.T) {
 	wantHTTPClient = &http.Client{
 		Timeout: 45 * time.Second,
 	}
-	gotHTTPClient = tester.GetHTTPClient()
+	gotHTTPClient = tester.HTTPClient()
 	if !cmp.Equal(wantHTTPClient, gotHTTPClient) {
 		t.Errorf(cmp.Diff(wantHTTPClient, gotHTTPClient))
 	}
@@ -192,7 +192,7 @@ func TestRun(t *testing.T) {
 		Success:  100,
 		Failures: 0,
 	}
-	gotStats := tester.GetStats()
+	gotStats := tester.Stats()
 	if !cmp.Equal(wantStats, gotStats) {
 		t.Error(cmp.Diff(wantStats, gotStats))
 	}
@@ -201,7 +201,7 @@ func TestRun(t *testing.T) {
 		t.Errorf("want failures plus success %d got %d", gotStats.Requests, gotStats.Failures+gotStats.Success)
 	}
 
-	gotTotalTime := time.Since(tester.GetStartTime())
+	gotTotalTime := time.Since(tester.StartTime())
 	if gotTotalTime == 0 {
 		t.Fatal("total time of zero seconds is invalid")
 	}
@@ -228,7 +228,7 @@ func TestRecordStats(t *testing.T) {
 		Fastest:  50 * time.Millisecond,
 	}
 	tester.SetFastestAndSlowest()
-	got := tester.GetStats()
+	got := tester.Stats()
 	if !cmp.Equal(want, got) {
 		t.Error(cmp.Diff(want, got))
 	}

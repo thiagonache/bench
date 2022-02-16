@@ -87,23 +87,23 @@ func WithStderr(w io.Writer) Option {
 	}
 }
 
-func (t Tester) GetHTTPUserAgent() string {
+func (t Tester) HTTPUserAgent() string {
 	return t.userAgent
 }
 
-func (t Tester) GetHTTPClient() *http.Client {
+func (t Tester) HTTPClient() *http.Client {
 	return t.client
 }
 
-func (t Tester) GetStartTime() time.Time {
+func (t Tester) StartTime() time.Time {
 	return t.startAt
 }
 
-func (t Tester) GetStats() Stats {
+func (t Tester) Stats() Stats {
 	return t.stats
 }
 
-func (t Tester) GetRequests() int {
+func (t Tester) Requests() int {
 	return t.requests
 }
 
@@ -115,7 +115,7 @@ func (t *Tester) DoRequest(url string) {
 		t.RecordFailure()
 		return
 	}
-	req.Header.Set("user-agent", t.GetHTTPUserAgent())
+	req.Header.Set("user-agent", t.HTTPUserAgent())
 	req.Header.Set("accept", "*/*")
 	startTime := Time()
 	resp, err := t.client.Do(req)
