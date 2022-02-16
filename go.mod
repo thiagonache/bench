@@ -1,4 +1,4 @@
-module github.com/thiagonache/simplebench
+module github.com/thiagonache/bench
 
 go 1.17
 

@@ -11,5 +11,5 @@ Measurements:
 - Total Success and Failures :white_check_mark:
 - Mean time of all requests
 - P99, P90
-- Slowest request
-- Fastest request
+- Slowest request :white_check_mark:
+- Fastest request :white_check_mark:
