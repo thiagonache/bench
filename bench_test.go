@@ -1,205 +1,218 @@
 package bench_test
 
 import (
+	"errors"
+	"fmt"
 	"io"
+	"net/http"
+	"net/http/httptest"
 	"testing"
+	"time"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/thiagonache/bench"
 )
 
-// func TestNonOKStatusRecordedAsFailure(t *testing.T) {
-// 	t.Parallel()
+func TestNonOKStatusRecordedAsFailure(t *testing.T) {
+	t.Parallel()
 
-// 	server := httptest.NewTLSServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-// 		http.Error(rw, "ForceFailing", http.StatusTeapot)
-// 	}))
-// 	tester, err := bench.NewTester(server.URL,
-// 		bench.WithHTTPClient(server.Client()),
-// 		bench.WithStdout(io.Discard),
-// 		bench.WithStderr(io.Discard),
-// 	)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	tester.Run()
-// 	want := bench.Stats{
-// 		Requests: 1,
-// 		Success:  0,
-// 		Failures: 1,
-// 	}
-// 	got := tester.Stats()
-// 	if !cmp.Equal(want, got) {
-// 		t.Error(cmp.Diff(want, got))
-// 	}
-// }
+	server := httptest.NewTLSServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		http.Error(rw, "ForceFailing", http.StatusTeapot)
+	}))
+	tester, err := bench.NewTester(
+		bench.WithURL(server.URL),
+		bench.WithHTTPClient(server.Client()),
+		bench.WithStdout(io.Discard),
+		bench.WithStderr(io.Discard),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tester.Run()
+	stats := tester.Stats()
+	if stats.Requests != 1 {
+		t.Errorf("want 1 request, got %d", stats.Requests)
+	}
+	if stats.Successes != 0 {
+		t.Errorf("want 0 successes, got %d", stats.Successes)
+	}
+	if stats.Failures != 1 {
+		t.Errorf("want 1 failure, got %d", stats.Failures)
+	}
+}
 
-// func TestNewTesterRequests(t *testing.T) {
-// 	t.Parallel()
-// 	tester, err := bench.NewTester("http://fake.url")
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
+func TestNewTesterByDefaultIsConfiguredForDefaultNumRequests(t *testing.T) {
+	t.Parallel()
+	tester, err := bench.NewTester(
+		bench.WithURL("http://fake.url"),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := bench.DefaultNumRequests
+	got := tester.Requests()
+	if want != got {
+		t.Errorf("want tester configured for default number of requests (%d), got %d", want, got)
+	}
+}
 
-// 	wantReqs := 1
-// 	gotReqs := tester.Requests()
-// 	if wantReqs != gotReqs {
-// 		t.Errorf("reqs: want %d, got %d", wantReqs, gotReqs)
-// 	}
+func TestNewTesterWithNRequestsIsConfiguredForNRequests(t *testing.T) {
+	t.Parallel()
+	tester, err := bench.NewTester(
+		bench.WithURL("http://fake.url"),
+		bench.WithRequests(10),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := tester.Requests()
+	if got != 10 {
+		t.Errorf("want tester configured for 10 requests, got %d", got)
+	}
+}
 
-// 	tester, err = bench.NewTester(
-// 		"http://fake.url",
-// 		bench.WithRequests(10),
-// 	)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
+func TestNewTesterWithInvalidRequestsReturnsError(t *testing.T) {
+	t.Parallel()
+	_, err := bench.NewTester(
+		bench.WithURL("http://fake.url"),
+		bench.WithRequests(-1),
+	)
+	if err == nil {
+		t.Fatal("want error for invalid number of requests (-1)")
+	}
+}
 
-// 	wantReqs = 10
-// 	gotReqs = tester.Requests()
-// 	if wantReqs != gotReqs {
-// 		t.Errorf("reqs: want %d, got %d", wantReqs, gotReqs)
-// 	}
-// }
+func TestNewTesterByDefaultSetsDefaultHTTPUserAgent(t *testing.T) {
+	t.Parallel()
+	tester, err := bench.NewTester(
+		bench.WithURL("http://fake.url"),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := bench.DefaultUserAgent
+	got := tester.HTTPUserAgent()
+	if want != got {
+		t.Errorf("want default user agent (%q), got %q", want, got)
+	}
+}
 
-// func TestNewTesterRequestsInvalid(t *testing.T) {
-// 	t.Parallel()
-// 	_, err := bench.NewTester("http://fake.url", bench.WithRequests(0))
-// 	if err == nil {
-// 		t.Fatal("Error expected but not found")
-// 	}
-// }
-// func TestNewTesterHTTPUserAgent(t *testing.T) {
-// 	t.Parallel()
-// 	tester, err := bench.NewTester("http://fake.url")
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	wantUserAgent := "Bench 0.0.1 Alpha"
-// 	gotUserAgent := tester.HTTPUserAgent()
-// 	if wantUserAgent != gotUserAgent {
-// 		t.Errorf("user-agent: want %q, got %q", wantUserAgent, gotUserAgent)
-// 	}
+func TestNewTesterWithUserAgentXSetsUserAgentX(t *testing.T) {
+	t.Parallel()
+	tester, err := bench.NewTester(
+		bench.WithURL("http://fake.url"),
+		bench.WithHTTPUserAgent("CustomUserAgent"),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "CustomUserAgent"
+	got := tester.HTTPUserAgent()
+	if want != got {
+		t.Errorf("user-agent: want %q, got %q", want, got)
+	}
+}
 
-// 	tester, err = bench.NewTester(
-// 		"http://fake.url",
-// 		bench.WithHTTPUserAgent("CustomUserAgent"),
-// 	)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	wantUserAgent = "CustomUserAgent"
-// 	gotUserAgent = tester.HTTPUserAgent()
-// 	if wantUserAgent != gotUserAgent {
-// 		t.Errorf("user-agent: want %q, got %q", wantUserAgent, gotUserAgent)
-// 	}
-// }
+func TestNewTesterByDefaultSetsDefaultHTTPClient(t *testing.T) {
+	t.Parallel()
+	tester, err := bench.NewTester(
+		bench.WithURL("http://fake.url"),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-// func TestNewTesterHTTPClient(t *testing.T) {
-// 	t.Parallel()
-// 	tester, err := bench.NewTester("http://fake.url")
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
+	want := bench.DefaultHTTPClient
+	got := tester.HTTPClient()
+	if !cmp.Equal(want, got) {
+		t.Errorf(cmp.Diff(want, got))
+	}
+}
 
-// 	wantHTTPClient := &http.Client{}
-// 	wantHTTPClient.Timeout = 30 * time.Second
-// 	gotHTTPClient := tester.HTTPClient()
-// 	if !cmp.Equal(wantHTTPClient, gotHTTPClient) {
-// 		t.Errorf(cmp.Diff(wantHTTPClient, gotHTTPClient))
-// 	}
+func TestNewTesterWithHTTPClientXSetsHTTPClientX(t *testing.T) {
+	t.Parallel()
+	tester, err := bench.NewTester(
+		bench.WithURL("http://fake.url"),
+		bench.WithHTTPClient(&http.Client{
+			Timeout: 45 * time.Second,
+		}),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := &http.Client{
+		Timeout: 45 * time.Second,
+	}
+	got := tester.HTTPClient()
+	if !cmp.Equal(want, got) {
+		t.Errorf(cmp.Diff(want, got))
+	}
+}
 
-// 	tester, err = bench.NewTester(
-// 		"http://fake.url",
-// 		bench.WithHTTPClient(&http.Client{
-// 			Timeout: 45 * time.Second,
-// 		}),
-// 	)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	wantHTTPClient = &http.Client{
-// 		Timeout: 45 * time.Second,
-// 	}
-// 	gotHTTPClient = tester.HTTPClient()
-// 	if !cmp.Equal(wantHTTPClient, gotHTTPClient) {
-// 		t.Errorf(cmp.Diff(wantHTTPClient, gotHTTPClient))
-// 	}
-// }
+func TestNewTesterWithInvalidURLReturnsError(t *testing.T) {
+	t.Parallel()
+	inputs := []string{
+		"bogus-no-scheme-or-domain",
+		"bogus-no-host://",
+		"bogus-no-scheme.fake",
+	}
+	for _, url := range inputs {
+		_, err := bench.NewTester(
+			bench.WithURL(url),
+		)
+		if err == nil {
+			t.Errorf("want error for invalid URL %q", url)
+		}
+	}
+}
 
-// func TestURLParseInvalid(t *testing.T) {
-// 	t.Parallel()
-// 	testCases := []struct {
-// 		desc string
-// 		url  string
-// 	}{
-// 		{
-// 			desc: "Test bogus http URL",
-// 			url:  "bogus",
-// 		},
-// 		{
-// 			desc: "Test http:// http URL",
-// 			url:  "http://",
-// 		},
-// 		{
-// 			desc: "Test fake.url http URL",
-// 			url:  "fake.url",
-// 		},
-// 	}
-// 	for _, tC := range testCases {
-// 		t.Run(tC.desc, func(t *testing.T) {
-// 			_, err := bench.NewTester(tC.url)
-// 			if err == nil {
-// 				t.Error("error expected but not found")
-// 			}
-// 		})
-// 	}
-// }
+func TestNewTesterWithValidURLReturnsNoError(t *testing.T) {
+	t.Parallel()
+	_, err := bench.NewTester(
+		bench.WithURL("http://fake.url"),
+	)
+	if err != nil {
+		t.Errorf("error not expected but found: %q", err)
+	}
+}
 
-// func TestURLParseValid(t *testing.T) {
-// 	t.Parallel()
-// 	_, err := bench.NewTester("http://fake.url")
-// 	if err != nil {
-// 		t.Errorf("error not expected but found: %q", err.Error())
-// 	}
-// }
-
-// func TestRun(t *testing.T) {
-// 	t.Parallel()
-// 	bench.Time = func() time.Time {
-// 		return time.Time{}
-// 	}
-// 	server := httptest.NewTLSServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-// 		fmt.Fprintf(rw, "HelloWorld")
-// 	}))
-// 	tester, err := bench.NewTester(server.URL,
-// 		bench.WithRequests(100),
-// 		bench.WithHTTPClient(server.Client()),
-// 		bench.WithStdout(io.Discard),
-// 		bench.WithStderr(io.Discard),
-// 	)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	tester.Run()
-// 	wantStats := bench.Stats{
-// 		Requests: 100,
-// 		Success:  100,
-// 		Failures: 0,
-// 	}
-// 	gotStats := tester.Stats()
-// 	if !cmp.Equal(wantStats, gotStats) {
-// 		t.Error(cmp.Diff(wantStats, gotStats))
-// 	}
-
-// 	if gotStats.Requests != gotStats.Failures+gotStats.Success {
-// 		t.Errorf("want failures plus success %d got %d", gotStats.Requests, gotStats.Failures+gotStats.Success)
-// 	}
-
-// 	gotTotalTime := time.Since(tester.StartTime())
-// 	if gotTotalTime == 0 {
-// 		t.Fatal("total time of zero seconds is invalid")
-// 	}
-// }
+func TestRunReturnsValidStatsAndTime(t *testing.T) {
+	t.Parallel()
+	bench.Time = func() time.Time {
+		return time.Time{}
+	}
+	server := httptest.NewTLSServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(rw, "HelloWorld")
+	}))
+	tester, err := bench.NewTester(
+		bench.WithURL(server.URL),
+		bench.WithRequests(100),
+		bench.WithHTTPClient(server.Client()),
+		bench.WithStdout(io.Discard),
+		bench.WithStderr(io.Discard),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tester.Run()
+	stats := tester.Stats()
+	if stats.Requests != 100 {
+		t.Errorf("want 100 requests made, got %d", stats.Requests)
+	}
+	if stats.Successes != 100 {
+		t.Errorf("want 100 successes, got %d", stats.Successes)
+	}
+	if stats.Failures != 0 {
+		t.Errorf("want 0 failures, got %d", stats.Failures)
+	}
+	if stats.Requests != stats.Successes+stats.Failures {
+		t.Error("want total requests to be the sum of successes + failures")
+	}
+	duration := time.Since(tester.StartTime())
+	if duration > time.Second {
+		t.Fatalf("weirdly long test duration %s", duration)
+	}
+}
 
 // func TestRecordStats(t *testing.T) {
 // 	t.Parallel()
@@ -299,13 +312,30 @@ func TestWithInputsFromArgs(t *testing.T) {
 	}
 }
 
-func TestWithInputsFromArgsEmpty(t *testing.T) {
+func TestNewTesterReturnsErrorIfNoURLSet(t *testing.T) {
 	t.Parallel()
-	args := []string{}
-	_, err := bench.NewTester(
-		bench.WithInputsFromArgs(args),
+	_, err := bench.NewTester()
+	if !errors.Is(err, bench.ErrNoURL) {
+		t.Errorf("want ErrNoURL error if no URL set, got %q", err)
+	}
+	_, err = bench.NewTester(
+		bench.WithInputsFromArgs([]string{"-r", "10"}),
 	)
-	if err == nil {
-		t.Fatal("Error expected but got nil")
+	if !errors.Is(err, bench.ErrNoURL) {
+		t.Errorf("want ErrNoURL error if no URL set, got %q", err)
+	}
+}
+
+func TestWithURLSetsTesterURL(t *testing.T) {
+	t.Parallel()
+	tester, err := bench.NewTester(
+		bench.WithURL("https://example.com"),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "https://example.com"
+	if want != tester.URL {
+		t.Fatalf("want tester URL %q, got %q", want, tester.URL)
 	}
 }

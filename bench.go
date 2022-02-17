@@ -1,6 +1,7 @@
 package bench
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -12,13 +13,25 @@ import (
 	"time"
 )
 
+const (
+	DefaultNumRequests = 1
+	DefaultUserAgent   = "Bench 0.0.1 Alpha"
+)
+
+var (
+	ErrNoURL          = errors.New("no URL to test")
+	DefaultHTTPClient = &http.Client{
+		Timeout: 30 * time.Second,
+	}
+)
+
 type Tester struct {
 	client         *http.Client
 	requests       int
 	startAt        time.Time
 	stats          Stats
 	userAgent      string
-	url            string
+	URL            string
 	stdout, stderr io.Writer
 	wg             *sync.WaitGroup
 	work           chan string
@@ -28,7 +41,7 @@ type Tester struct {
 func NewTester(opts ...Option) (*Tester, error) {
 	tester := &Tester{
 		client:    &http.Client{Timeout: 30 * time.Second},
-		requests:  1,
+		requests:  DefaultNumRequests,
 		userAgent: "Bench 0.0.1 Alpha",
 		startAt:   time.Now(),
 		stdout:    os.Stdout,
@@ -46,15 +59,17 @@ func NewTester(opts ...Option) (*Tester, error) {
 			return nil, err
 		}
 	}
-
-	u, err := url.Parse(tester.url)
+	if tester.URL == "" {
+		return nil, ErrNoURL
+	}
+	u, err := url.Parse(tester.URL)
 	if err != nil {
 		return nil, err
 	}
 	if u.Scheme == "" || u.Host == "" {
-		return nil, fmt.Errorf("invalid URL %s", u)
+		return nil, fmt.Errorf("invalid URL %q", u)
 	}
-	if tester.requests == 0 {
+	if tester.requests < 1 {
 		return nil, fmt.Errorf("%d is invalid number of requests", tester.requests)
 	}
 	tester.work = make(chan string, tester.requests)
@@ -107,10 +122,18 @@ func WithInputsFromArgs(args []string) Option {
 		}
 		args = fset.Args()
 		if len(args) < 1 {
-			return fmt.Errorf("please, inform an URL to run benchmark")
+			fset.Usage()
+			return ErrNoURL
 		}
-		t.url = args[0]
+		t.URL = args[0]
 		t.requests = *reqs
+		return nil
+	}
+}
+
+func WithURL(URL string) Option {
+	return func(t *Tester) error {
+		t.URL = URL
 		return nil
 	}
 }
@@ -175,12 +198,12 @@ func (t *Tester) Run() {
 		}
 	}()
 	for x := 0; x < t.requests; x++ {
-		t.work <- t.url
+		t.work <- t.URL
 	}
 	t.wg.Wait()
 	t.SetFastestAndSlowest()
-	t.LogFStdOut("URL %q benchmark is done\n", t.url)
-	t.LogFStdOut("Time: %v Requests: %d Success: %d Failures: %d\n", time.Since(t.startAt), t.stats.Requests, t.stats.Success, t.stats.Failures)
+	t.LogFStdOut("URL %q benchmark is done\n", t.URL)
+	t.LogFStdOut("Time: %v Requests: %d Success: %d Failures: %d\n", time.Since(t.startAt), t.stats.Requests, t.stats.Successes, t.stats.Failures)
 	t.LogFStdOut("Fastest: %v Slowest: %v\n", t.stats.Fastest, t.stats.Slowest)
 }
 
@@ -189,7 +212,7 @@ func (t *Tester) RecordRequest() {
 }
 
 func (t *Tester) RecordSuccess() {
-	atomic.AddUint64(&t.stats.Success, 1)
+	atomic.AddUint64(&t.stats.Successes, 1)
 }
 
 func (t *Tester) RecordFailure() {
@@ -225,8 +248,8 @@ func (t *Tester) SetFastestAndSlowest() {
 }
 
 type Stats struct {
-	Requests, Success, Failures uint64
-	Slowest, Fastest            time.Duration
+	Requests, Successes, Failures uint64
+	Slowest, Fastest              time.Duration
 }
 
 type Option func(*Tester) error
