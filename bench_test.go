@@ -1,6 +1,7 @@
 package bench_test
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -214,86 +215,88 @@ func TestRunReturnsValidStatsAndTime(t *testing.T) {
 	}
 }
 
-// func TestRecordStats(t *testing.T) {
-// 	t.Parallel()
-// 	tester, err := bench.NewTester("http://fake.url")
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	tester.RecordRequest()
-// 	tester.RecordSuccess()
-// 	tester.RecordFailure()
-// 	tester.TimeRecorder.RecordTime(100 * time.Millisecond)
-// 	tester.TimeRecorder.RecordTime(200 * time.Millisecond)
-// 	tester.TimeRecorder.RecordTime(100 * time.Millisecond)
-// 	tester.TimeRecorder.RecordTime(50 * time.Millisecond)
-// 	want := bench.Stats{
-// 		Requests: 1,
-// 		Success:  1,
-// 		Failures: 1,
-// 		Slowest:  200 * time.Millisecond,
-// 		Fastest:  50 * time.Millisecond,
-// 	}
-// 	tester.SetFastestAndSlowest()
-// 	got := tester.Stats()
-// 	if !cmp.Equal(want, got) {
-// 		t.Error(cmp.Diff(want, got))
-// 	}
-// }
+func TestRecordStats(t *testing.T) {
+	t.Parallel()
+	tester, err := bench.NewTester(
+		bench.WithURL("http://fake.url"),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tester.RecordRequest()
+	tester.RecordSuccess()
+	tester.RecordFailure()
+	tester.TimeRecorder.RecordTime(100 * time.Millisecond)
+	tester.TimeRecorder.RecordTime(200 * time.Millisecond)
+	tester.TimeRecorder.RecordTime(100 * time.Millisecond)
+	tester.TimeRecorder.RecordTime(50 * time.Millisecond)
+	want := bench.Stats{
+		Requests:  1,
+		Successes: 1,
+		Failures:  1,
+		Slowest:   200 * time.Millisecond,
+		Fastest:   50 * time.Millisecond,
+	}
+	tester.SetFastestAndSlowest()
+	got := tester.Stats()
+	if !cmp.Equal(want, got) {
+		t.Error(cmp.Diff(want, got))
+	}
+}
 
-// func TestLog(t *testing.T) {
-// 	t.Parallel()
+func TestLog(t *testing.T) {
+	t.Parallel()
 
-// 	stdout := &bytes.Buffer{}
-// 	stderr := &bytes.Buffer{}
-// 	tester, err := bench.NewTester(
-// 		"http://fake.url",
-// 		bench.WithStdout(stdout),
-// 		bench.WithStderr(stderr),
-// 	)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	want := "this message goes to stdout"
-// 	tester.LogStdOut("this message goes to stdout")
-// 	got := stdout.String()
-// 	if want != got {
-// 		t.Errorf("want message %q in stdout but found %q", want, got)
-// 	}
+	stdout := &bytes.Buffer{}
+	stderr := &bytes.Buffer{}
+	tester, err := bench.NewTester(
+		bench.WithURL("http://fake.url"),
+		bench.WithStdout(stdout),
+		bench.WithStderr(stderr),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "this message goes to stdout"
+	tester.LogStdOut("this message goes to stdout")
+	got := stdout.String()
+	if want != got {
+		t.Errorf("want message %q in stdout but found %q", want, got)
+	}
 
-// 	want = "this message goes to stderr"
-// 	tester.LogStdErr("this message goes to stderr")
-// 	got = stderr.String()
-// 	if want != got {
-// 		t.Errorf("want message %q in stderr but found %q", want, got)
-// 	}
-// }
+	want = "this message goes to stderr"
+	tester.LogStdErr("this message goes to stderr")
+	got = stderr.String()
+	if want != got {
+		t.Errorf("want message %q in stderr but found %q", want, got)
+	}
+}
 
-// func TestLogf(t *testing.T) {
-// 	t.Parallel()
-// 	stdout := &bytes.Buffer{}
-// 	stderr := &bytes.Buffer{}
-// 	tester, err := bench.NewTester(
-// 		"http://fake.url",
-// 		bench.WithStdout(stdout),
-// 		bench.WithStderr(stderr),
-// 	)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	want := "this message goes to stdout"
-// 	tester.LogFStdOut("this %s goes to %s", "message", "stdout")
-// 	got := stdout.String()
-// 	if want != got {
-// 		t.Errorf("want message %q in stdout but found %q", want, got)
-// 	}
-// 	want = "this message goes to stderr"
-// 	tester.LogFStdErr("this %s goes to %s", "message", "stderr")
-// 	got = stderr.String()
-// 	if want != got {
-// 		t.Errorf("want message %q in stderr but found %q", want, got)
-// 	}
-// }
+func TestLogf(t *testing.T) {
+	t.Parallel()
+	stdout := &bytes.Buffer{}
+	stderr := &bytes.Buffer{}
+	tester, err := bench.NewTester(
+		bench.WithURL("http://fake.url"),
+		bench.WithStdout(stdout),
+		bench.WithStderr(stderr),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "this message goes to stdout"
+	tester.LogFStdOut("this %s goes to %s", "message", "stdout")
+	got := stdout.String()
+	if want != got {
+		t.Errorf("want message %q in stdout but found %q", want, got)
+	}
+	want = "this message goes to stderr"
+	tester.LogFStdErr("this %s goes to %s", "message", "stderr")
+	got = stderr.String()
+	if want != got {
+		t.Errorf("want message %q in stderr but found %q", want, got)
+	}
+}
 
 func TestWithInputsFromArgs(t *testing.T) {
 	t.Parallel()
@@ -314,11 +317,14 @@ func TestWithInputsFromArgs(t *testing.T) {
 
 func TestNewTesterReturnsErrorIfNoURLSet(t *testing.T) {
 	t.Parallel()
-	_, err := bench.NewTester()
+	_, err := bench.NewTester(
+		bench.WithStderr(io.Discard),
+	)
 	if !errors.Is(err, bench.ErrNoURL) {
 		t.Errorf("want ErrNoURL error if no URL set, got %q", err)
 	}
 	_, err = bench.NewTester(
+		bench.WithStderr(io.Discard),
 		bench.WithInputsFromArgs([]string{"-r", "10"}),
 	)
 	if !errors.Is(err, bench.ErrNoURL) {
