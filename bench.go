@@ -1,6 +1,7 @@
 package bench
 
 import (
+	"flag"
 	"fmt"
 	"io"
 	"net/http"
@@ -24,19 +25,11 @@ type Tester struct {
 	TimeRecorder   TimeRecorder
 }
 
-func NewTester(URL string, opts ...Option) (*Tester, error) {
-	u, err := url.Parse(URL)
-	if err != nil {
-		return nil, err
-	}
-	if u.Scheme == "" || u.Host == "" {
-		return nil, fmt.Errorf("invalid URL %s", u)
-	}
+func NewTester(opts ...Option) (*Tester, error) {
 	tester := &Tester{
 		client:    &http.Client{Timeout: 30 * time.Second},
 		requests:  1,
 		userAgent: "Bench 0.0.1 Alpha",
-		url:       URL,
 		startAt:   time.Now(),
 		stdout:    os.Stdout,
 		stderr:    os.Stderr,
@@ -48,7 +41,18 @@ func NewTester(URL string, opts ...Option) (*Tester, error) {
 		},
 	}
 	for _, o := range opts {
-		o(tester)
+		err := o(tester)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	u, err := url.Parse(tester.url)
+	if err != nil {
+		return nil, err
+	}
+	if u.Scheme == "" || u.Host == "" {
+		return nil, fmt.Errorf("invalid URL %s", u)
 	}
 	if tester.requests == 0 {
 		return nil, fmt.Errorf("%d is invalid number of requests", tester.requests)
@@ -58,32 +62,56 @@ func NewTester(URL string, opts ...Option) (*Tester, error) {
 }
 
 func WithRequests(reqs int) Option {
-	return func(lg *Tester) {
-		lg.requests = reqs
+	return func(t *Tester) error {
+		t.requests = reqs
+		return nil
 	}
 }
 
 func WithHTTPUserAgent(userAgent string) Option {
-	return func(lg *Tester) {
-		lg.userAgent = userAgent
+	return func(t *Tester) error {
+		t.userAgent = userAgent
+		return nil
 	}
 }
 
 func WithHTTPClient(client *http.Client) Option {
-	return func(lg *Tester) {
-		lg.client = client
+	return func(t *Tester) error {
+		t.client = client
+		return nil
 	}
 }
 
 func WithStdout(w io.Writer) Option {
-	return func(lg *Tester) {
-		lg.stdout = w
+	return func(t *Tester) error {
+		t.stdout = w
+		return nil
 	}
 }
 
 func WithStderr(w io.Writer) Option {
-	return func(lg *Tester) {
+	return func(lg *Tester) error {
 		lg.stderr = w
+		return nil
+	}
+}
+
+func WithInputsFromArgs(args []string) Option {
+	return func(t *Tester) error {
+		fset := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+		reqs := flag.Int("r", 1, "number of requests to be performed in the benchmark")
+		err := fset.Parse(args)
+		if err != nil {
+			return err
+		}
+		args = fset.Args()
+		fmt.Println(args)
+		if len(args) < 1 {
+			return fmt.Errorf("please, inform an URL to run benchmark")
+		}
+		t.url = args[0]
+		t.requests = *reqs
+		return nil
 	}
 }
 
@@ -201,7 +229,7 @@ type Stats struct {
 	Slowest, Fastest            time.Duration
 }
 
-type Option func(*Tester)
+type Option func(*Tester) error
 
 var Time = func() time.Time {
 	return time.Now()
