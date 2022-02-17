@@ -99,13 +99,13 @@ func WithStderr(w io.Writer) Option {
 func WithInputsFromArgs(args []string) Option {
 	return func(t *Tester) error {
 		fset := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
-		reqs := flag.Int("r", 1, "number of requests to be performed in the benchmark")
+		fset.SetOutput(t.stderr)
+		reqs := fset.Int("r", 1, "number of requests to be performed in the benchmark")
 		err := fset.Parse(args)
 		if err != nil {
 			return err
 		}
 		args = fset.Args()
-		fmt.Println(args)
 		if len(args) < 1 {
 			return fmt.Errorf("please, inform an URL to run benchmark")
 		}

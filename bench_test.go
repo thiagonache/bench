@@ -1,6 +1,7 @@
 package bench_test
 
 import (
+	"io"
 	"testing"
 
 	"github.com/thiagonache/bench"
@@ -285,6 +286,7 @@ func TestWithInputsFromArgs(t *testing.T) {
 	t.Parallel()
 	args := []string{"-r", "10", "http://fake.url"}
 	tester, err := bench.NewTester(
+		bench.WithStderr(io.Discard),
 		bench.WithInputsFromArgs(args),
 	)
 	if err != nil {
