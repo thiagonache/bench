@@ -32,7 +32,7 @@ type Tester struct {
 	startAt        time.Time
 	stats          Stats
 	userAgent      string
-	URL            []string
+	URL            string
 	stdout, stderr io.Writer
 	wg             *sync.WaitGroup
 	work           chan string
@@ -60,19 +60,16 @@ func NewTester(opts ...Option) (*Tester, error) {
 			return nil, err
 		}
 	}
-	if len(tester.URL) < 1 {
+	if tester.URL == "" {
 		return nil, ErrNoURL
 	}
-	for _, URL := range tester.URL {
-		u, err := url.Parse(URL)
-		if err != nil {
-			return nil, err
-		}
-		if u.Scheme == "" || u.Host == "" {
-			return nil, fmt.Errorf("invalid URL %q", u)
-		}
+	u, err := url.Parse(tester.URL)
+	if err != nil {
+		return nil, err
 	}
-
+	if u.Scheme == "" || u.Host == "" {
+		return nil, fmt.Errorf("invalid URL %q", u)
+	}
 	if tester.requests < 1 {
 		return nil, fmt.Errorf("%d is invalid number of requests", tester.requests)
 	}
@@ -129,13 +126,13 @@ func WithInputsFromArgs(args []string) Option {
 			fset.Usage()
 			return ErrNoURL
 		}
-		t.URL = args
+		t.URL = args[0]
 		t.requests = *reqs
 		return nil
 	}
 }
 
-func WithURL(URL []string) Option {
+func WithURL(URL string) Option {
 	return func(t *Tester) error {
 		t.URL = URL
 		return nil
@@ -191,7 +188,7 @@ func (t *Tester) DoRequest(url string) {
 }
 
 func (t *Tester) Run() {
-	t.wg.Add(t.requests * len(t.URL))
+	t.wg.Add(t.requests)
 	go func() {
 		for range time.NewTicker(time.Millisecond).C {
 			url := <-t.work
@@ -202,9 +199,7 @@ func (t *Tester) Run() {
 		}
 	}()
 	for x := 0; x < t.requests; x++ {
-		for _, v := range t.URL {
-			t.work <- v
-		}
+		t.work <- t.URL
 	}
 	t.wg.Wait()
 	t.SetMetrics()
