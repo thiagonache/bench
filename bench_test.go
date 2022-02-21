@@ -212,7 +212,7 @@ func TestRunReturnsValidStatsAndTime(t *testing.T) {
 	}
 }
 
-func TestRecordStats(t *testing.T) {
+func TestTimeRecorderCalledMultipleTimesSetCorrectStatsAndReturnsNoError(t *testing.T) {
 	t.Parallel()
 	tester, err := bench.NewTester(
 		bench.WithURL("http://fake.url"),
@@ -220,6 +220,7 @@ func TestRecordStats(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	tester.TimeRecorder.RecordTime(50 * time.Millisecond)
 	tester.TimeRecorder.RecordTime(100 * time.Millisecond)
 	tester.TimeRecorder.RecordTime(200 * time.Millisecond)
@@ -230,10 +231,28 @@ func TestRecordStats(t *testing.T) {
 		Slowest: 200 * time.Millisecond,
 		Fastest: 50 * time.Millisecond,
 	}
-	tester.SetMetrics()
+	err = tester.SetMetrics()
+	if err != nil {
+		t.Fatal(err)
+	}
 	got := tester.Stats()
 	if !cmp.Equal(want, got) {
 		t.Error(cmp.Diff(want, got))
+	}
+}
+
+func TestTimeRecorderCalledZeroTimesReturnsError(t *testing.T) {
+	t.Parallel()
+	tester, err := bench.NewTester(
+		bench.WithURL("http://fake.url"),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = tester.SetMetrics()
+	if !errors.Is(err, bench.ErrTimeNotRecorded) {
+		t.Errorf("want ErrTimeNotRecorded error if there is no ExecutionsTime, got %q", err)
 	}
 }
 

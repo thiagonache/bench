@@ -19,8 +19,9 @@ const (
 )
 
 var (
-	ErrNoURL          = errors.New("no URL to test")
-	DefaultHTTPClient = &http.Client{
+	ErrNoURL           = errors.New("no URL to test")
+	ErrTimeNotRecorded = errors.New("no execution time recorded")
+	DefaultHTTPClient  = &http.Client{
 		Timeout: 30 * time.Second,
 	}
 )
@@ -235,7 +236,10 @@ func (t Tester) LogFStdErr(msg string, opts ...interface{}) {
 	fmt.Fprintf(t.stderr, msg, opts...)
 }
 
-func (t *Tester) SetMetrics() {
+func (t *Tester) SetMetrics() error {
+	if len(t.TimeRecorder.ExecutionsTime) < 1 {
+		return ErrTimeNotRecorded
+	}
 	nreq := 0
 	total := 0 * time.Millisecond
 	t.stats.Fastest = t.TimeRecorder.ExecutionsTime[0]
@@ -250,6 +254,7 @@ func (t *Tester) SetMetrics() {
 		}
 	}
 	t.stats.Mean = total / time.Duration(nreq)
+	return nil
 }
 
 type Stats struct {
