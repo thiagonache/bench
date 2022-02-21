@@ -201,10 +201,10 @@ func (t *Tester) Run() {
 		t.work <- t.URL
 	}
 	t.wg.Wait()
-	t.SetFastestAndSlowest()
-	t.LogFStdOut("URL %q benchmark is done\n", t.URL)
+	t.SetMetrics()
+	t.LogFStdOut("URL: %q benchmark is done\n", t.URL)
 	t.LogFStdOut("Time: %v Requests: %d Success: %d Failures: %d\n", time.Since(t.startAt), t.stats.Requests, t.stats.Successes, t.stats.Failures)
-	t.LogFStdOut("Fastest: %v Slowest: %v\n", t.stats.Fastest, t.stats.Slowest)
+	t.LogFStdOut("Fastest: %v Mean: %v Slowest: %v\n", t.stats.Mean, t.stats.Fastest, t.stats.Slowest)
 }
 
 func (t *Tester) RecordRequest() {
