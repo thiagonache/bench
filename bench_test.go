@@ -241,7 +241,7 @@ func TestTimeRecorderCalledMultipleTimesSetCorrectStatsAndReturnsNoError(t *test
 	}
 }
 
-func TestTimeRecorderCalledZeroTimesReturnsError(t *testing.T) {
+func TestSetMetricsReturnsErrorIfRecordTimeIsNotCalled(t *testing.T) {
 	t.Parallel()
 	tester, err := bench.NewTester(
 		bench.WithURL("http://fake.url"),
