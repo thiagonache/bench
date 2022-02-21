@@ -179,9 +179,6 @@ func TestNewTesterWithValidURLReturnsNoError(t *testing.T) {
 
 func TestRunReturnsValidStatsAndTime(t *testing.T) {
 	t.Parallel()
-	bench.Time = func() time.Time {
-		return time.Time{}
-	}
 	server := httptest.NewTLSServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(rw, "HelloWorld")
 	}))
@@ -223,21 +220,17 @@ func TestRecordStats(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	tester.RecordRequest()
-	tester.RecordSuccess()
-	tester.RecordFailure()
+	tester.TimeRecorder.RecordTime(50 * time.Millisecond)
 	tester.TimeRecorder.RecordTime(100 * time.Millisecond)
 	tester.TimeRecorder.RecordTime(200 * time.Millisecond)
 	tester.TimeRecorder.RecordTime(100 * time.Millisecond)
 	tester.TimeRecorder.RecordTime(50 * time.Millisecond)
 	want := bench.Stats{
-		Requests:  1,
-		Successes: 1,
-		Failures:  1,
-		Slowest:   200 * time.Millisecond,
-		Fastest:   50 * time.Millisecond,
+		Mean:    100 * time.Millisecond,
+		Slowest: 200 * time.Millisecond,
+		Fastest: 50 * time.Millisecond,
 	}
-	tester.SetFastestAndSlowest()
+	tester.SetMetrics()
 	got := tester.Stats()
 	if !cmp.Equal(want, got) {
 		t.Error(cmp.Diff(want, got))
@@ -298,7 +291,7 @@ func TestLogf(t *testing.T) {
 	}
 }
 
-func TestWithInputsFromArgs(t *testing.T) {
+func TestWithInputsBeforeURLNRequestsConfiguresNRequests(t *testing.T) {
 	t.Parallel()
 	args := []string{"-r", "10", "http://fake.url"}
 	tester, err := bench.NewTester(
@@ -314,6 +307,23 @@ func TestWithInputsFromArgs(t *testing.T) {
 		t.Errorf("reqs: want %d, got %d", wantReqs, gotReqs)
 	}
 }
+
+// func TestWithInputsAfterURLNRequestsConfiguresNRequests(t *testing.T) {
+// 	t.Parallel()
+// 	args := []string{"http://fake.url", "-r", "10"}
+// 	tester, err := bench.NewTester(
+// 		bench.WithStderr(io.Discard),
+// 		bench.WithInputsFromArgs(args),
+// 	)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	wantReqs := 10
+// 	gotReqs := tester.Requests()
+// 	if wantReqs != gotReqs {
+// 		t.Errorf("reqs: want %d, got %d", wantReqs, gotReqs)
+// 	}
+// }
 
 func TestNewTesterReturnsErrorIfNoURLSet(t *testing.T) {
 	t.Parallel()

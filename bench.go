@@ -168,9 +168,9 @@ func (t *Tester) DoRequest(url string) {
 	}
 	req.Header.Set("user-agent", t.HTTPUserAgent())
 	req.Header.Set("accept", "*/*")
-	startTime := Time()
+	startTime := time.Now()
 	resp, err := t.client.Do(req)
-	endTime := Time()
+	endTime := time.Now()
 	if err != nil {
 		t.RecordFailure()
 		t.LogStdErr(err.Error())
@@ -235,28 +235,29 @@ func (t Tester) LogFStdErr(msg string, opts ...interface{}) {
 	fmt.Fprintf(t.stderr, msg, opts...)
 }
 
-func (t *Tester) SetFastestAndSlowest() {
+func (t *Tester) SetMetrics() {
+	nreq := 0
+	total := 0 * time.Millisecond
 	t.stats.Fastest = t.TimeRecorder.ExecutionsTime[0]
 	t.stats.Slowest = t.TimeRecorder.ExecutionsTime[0]
 	for _, v := range t.TimeRecorder.ExecutionsTime {
+		nreq++
+		total += v
 		if v < t.stats.Fastest {
 			t.stats.Fastest = v
 		} else if v > t.stats.Slowest {
 			t.stats.Slowest = v
 		}
 	}
+	t.stats.Mean = total / time.Duration(nreq)
 }
 
 type Stats struct {
 	Requests, Successes, Failures uint64
-	Slowest, Fastest              time.Duration
+	Slowest, Fastest, Mean        time.Duration
 }
 
 type Option func(*Tester) error
-
-var Time = func() time.Time {
-	return time.Now()
-}
 
 type TimeRecorder struct {
 	MU             *sync.Mutex
