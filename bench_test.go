@@ -327,23 +327,6 @@ func TestWithInputsBeforeURLNRequestsConfiguresNRequests(t *testing.T) {
 	}
 }
 
-// func TestWithInputsAfterURLNRequestsConfiguresNRequests(t *testing.T) {
-// 	t.Parallel()
-// 	args := []string{"http://fake.url", "-r", "10"}
-// 	tester, err := bench.NewTester(
-// 		bench.WithStderr(io.Discard),
-// 		bench.WithInputsFromArgs(args),
-// 	)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	wantReqs := 10
-// 	gotReqs := tester.Requests()
-// 	if wantReqs != gotReqs {
-// 		t.Errorf("reqs: want %d, got %d", wantReqs, gotReqs)
-// 	}
-// }
-
 func TestNewTesterReturnsErrorIfNoURLSet(t *testing.T) {
 	t.Parallel()
 	_, err := bench.NewTester(
