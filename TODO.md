@@ -9,7 +9,7 @@ Measurements:
 
 - Total amount of time to run all requests :white_check_mark:
 - Total Success and Failures :white_check_mark:
-- Mean time of all requests
-- P99, P90
+- Mean time of all requests :white_check_mark:
+- P99, P90 :white_check_mark:
 - Slowest request :white_check_mark:
 - Fastest request :white_check_mark:

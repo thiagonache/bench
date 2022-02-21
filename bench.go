@@ -5,9 +5,11 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"net/url"
 	"os"
+	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -205,6 +207,7 @@ func (t *Tester) Run() {
 	t.SetMetrics()
 	t.LogFStdOut("URL: %q benchmark is done\n", t.URL)
 	t.LogFStdOut("Time: %v Requests: %d Success: %d Failures: %d\n", time.Since(t.startAt), t.stats.Requests, t.stats.Successes, t.stats.Failures)
+	t.LogFStdOut("90th percentile: %v 99th percentile: %v\n", t.stats.Perc90, t.stats.Perc99)
 	t.LogFStdOut("Fastest: %v Mean: %v Slowest: %v\n", t.stats.Fastest, t.stats.Mean, t.stats.Slowest)
 }
 
@@ -240,6 +243,14 @@ func (t *Tester) SetMetrics() error {
 	if len(t.TimeRecorder.ExecutionsTime) < 1 {
 		return ErrTimeNotRecorded
 	}
+	sort.Slice(t.TimeRecorder.ExecutionsTime, func(i, j int) bool {
+		return t.TimeRecorder.ExecutionsTime[i].Microseconds() < t.TimeRecorder.ExecutionsTime[j].Microseconds()
+	})
+	perc90Index := int(math.Round(float64(len(t.TimeRecorder.ExecutionsTime))*0.9)) - 1
+	t.stats.Perc90 = t.TimeRecorder.ExecutionsTime[perc90Index]
+	perc99Index := int(math.Round(float64(len(t.TimeRecorder.ExecutionsTime))*0.99)) - 1
+	t.stats.Perc99 = t.TimeRecorder.ExecutionsTime[perc99Index]
+
 	nreq := 0
 	total := 0 * time.Millisecond
 	t.stats.Fastest = t.TimeRecorder.ExecutionsTime[0]
@@ -257,9 +268,19 @@ func (t *Tester) SetMetrics() error {
 	return nil
 }
 
+func (t *Tester) SortExecutionsTime() {
+
+}
+
 type Stats struct {
-	Requests, Successes, Failures uint64
-	Slowest, Fastest, Mean        time.Duration
+	Requests  uint64
+	Successes uint64
+	Failures  uint64
+	Slowest   time.Duration
+	Fastest   time.Duration
+	Mean      time.Duration
+	Perc90    time.Duration
+	Perc99    time.Duration
 }
 
 type Option func(*Tester) error
