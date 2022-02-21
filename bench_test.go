@@ -220,24 +220,24 @@ func TestTimeRecorderCalledMultipleTimesSetCorrectStatsAndReturnsNoError(t *test
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	tester.TimeRecorder.RecordTime(50 * time.Millisecond)
 	tester.TimeRecorder.RecordTime(100 * time.Millisecond)
 	tester.TimeRecorder.RecordTime(200 * time.Millisecond)
 	tester.TimeRecorder.RecordTime(100 * time.Millisecond)
 	tester.TimeRecorder.RecordTime(50 * time.Millisecond)
-	want := bench.Stats{
-		Mean:    100 * time.Millisecond,
-		Slowest: 200 * time.Millisecond,
-		Fastest: 50 * time.Millisecond,
-	}
 	err = tester.SetMetrics()
 	if err != nil {
 		t.Fatal(err)
 	}
-	got := tester.Stats()
-	if !cmp.Equal(want, got) {
-		t.Error(cmp.Diff(want, got))
+	stats := tester.Stats()
+	if stats.Mean != 100*time.Millisecond {
+		t.Errorf("want 100ms mean time, got %v", stats.Mean)
+	}
+	if stats.Slowest != 200*time.Millisecond {
+		t.Errorf("want slowest request of 200ms, got %v", stats.Slowest)
+	}
+	if stats.Fastest != 50*time.Millisecond {
+		t.Errorf("want fastest request of 50ms, got %v", stats.Fastest)
 	}
 }
 
