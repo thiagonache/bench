@@ -42,7 +42,7 @@ func NewTester(opts ...Option) (*Tester, error) {
 	tester := &Tester{
 		client:    &http.Client{Timeout: 30 * time.Second},
 		requests:  DefaultNumRequests,
-		userAgent: "Bench 0.0.1 Alpha",
+		userAgent: DefaultUserAgent,
 		startAt:   time.Now(),
 		stdout:    os.Stdout,
 		stderr:    os.Stderr,
