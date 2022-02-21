@@ -21,11 +21,11 @@ const (
 )
 
 var (
-	ErrNoURL           = errors.New("no URL to test")
-	ErrTimeNotRecorded = errors.New("no execution time recorded")
-	DefaultHTTPClient  = &http.Client{
+	DefaultHTTPClient = &http.Client{
 		Timeout: 30 * time.Second,
 	}
+	ErrNoURL           = errors.New("no URL to test")
+	ErrTimeNotRecorded = errors.New("no execution time recorded")
 )
 
 type Tester struct {
@@ -33,28 +33,28 @@ type Tester struct {
 	requests       int
 	startAt        time.Time
 	stats          Stats
-	userAgent      string
-	URL            string
 	stdout, stderr io.Writer
+	TimeRecorder   TimeRecorder
+	URL            string
+	userAgent      string
 	wg             *sync.WaitGroup
 	work           chan string
-	TimeRecorder   TimeRecorder
 }
 
 func NewTester(opts ...Option) (*Tester, error) {
 	tester := &Tester{
-		client:    &http.Client{Timeout: 30 * time.Second},
-		requests:  DefaultNumRequests,
-		userAgent: DefaultUserAgent,
-		startAt:   time.Now(),
-		stdout:    os.Stdout,
-		stderr:    os.Stderr,
-		wg:        &sync.WaitGroup{},
-		stats:     Stats{},
+		client:   &http.Client{Timeout: 30 * time.Second},
+		requests: DefaultNumRequests,
+		startAt:  time.Now(),
+		stats:    Stats{},
+		stderr:   os.Stderr,
+		stdout:   os.Stdout,
 		TimeRecorder: TimeRecorder{
 			MU:             &sync.Mutex{},
 			ExecutionsTime: []time.Duration{},
 		},
+		userAgent: DefaultUserAgent,
+		wg:        &sync.WaitGroup{},
 	}
 	for _, o := range opts {
 		err := o(tester)
@@ -273,21 +273,21 @@ func (t *Tester) SortExecutionsTime() {
 }
 
 type Stats struct {
-	Requests  uint64
-	Successes uint64
 	Failures  uint64
-	Slowest   time.Duration
 	Fastest   time.Duration
 	Mean      time.Duration
 	Perc90    time.Duration
 	Perc99    time.Duration
+	Requests  uint64
+	Slowest   time.Duration
+	Successes uint64
 }
 
 type Option func(*Tester) error
 
 type TimeRecorder struct {
-	MU             *sync.Mutex
 	ExecutionsTime []time.Duration
+	MU             *sync.Mutex
 }
 
 func (t *TimeRecorder) RecordTime(executionTime time.Duration) {
