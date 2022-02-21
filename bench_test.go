@@ -21,7 +21,7 @@ func TestNonOKStatusRecordedAsFailure(t *testing.T) {
 		http.Error(rw, "ForceFailing", http.StatusTeapot)
 	}))
 	tester, err := bench.NewTester(
-		bench.WithURL(server.URL),
+		bench.WithURL([]string{server.URL}),
 		bench.WithHTTPClient(server.Client()),
 		bench.WithStdout(io.Discard),
 		bench.WithStderr(io.Discard),
@@ -45,7 +45,7 @@ func TestNonOKStatusRecordedAsFailure(t *testing.T) {
 func TestNewTesterByDefaultIsConfiguredForDefaultNumRequests(t *testing.T) {
 	t.Parallel()
 	tester, err := bench.NewTester(
-		bench.WithURL("http://fake.url"),
+		bench.WithURL([]string{"http://fake.url"}),
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -60,7 +60,7 @@ func TestNewTesterByDefaultIsConfiguredForDefaultNumRequests(t *testing.T) {
 func TestNewTesterWithNRequestsIsConfiguredForNRequests(t *testing.T) {
 	t.Parallel()
 	tester, err := bench.NewTester(
-		bench.WithURL("http://fake.url"),
+		bench.WithURL([]string{"http://fake.url"}),
 		bench.WithRequests(10),
 	)
 	if err != nil {
@@ -75,7 +75,7 @@ func TestNewTesterWithNRequestsIsConfiguredForNRequests(t *testing.T) {
 func TestNewTesterWithInvalidRequestsReturnsError(t *testing.T) {
 	t.Parallel()
 	_, err := bench.NewTester(
-		bench.WithURL("http://fake.url"),
+		bench.WithURL([]string{"http://fake.url"}),
 		bench.WithRequests(-1),
 	)
 	if err == nil {
@@ -86,7 +86,7 @@ func TestNewTesterWithInvalidRequestsReturnsError(t *testing.T) {
 func TestNewTesterByDefaultSetsDefaultHTTPUserAgent(t *testing.T) {
 	t.Parallel()
 	tester, err := bench.NewTester(
-		bench.WithURL("http://fake.url"),
+		bench.WithURL([]string{"http://fake.url"}),
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -101,7 +101,7 @@ func TestNewTesterByDefaultSetsDefaultHTTPUserAgent(t *testing.T) {
 func TestNewTesterWithUserAgentXSetsUserAgentX(t *testing.T) {
 	t.Parallel()
 	tester, err := bench.NewTester(
-		bench.WithURL("http://fake.url"),
+		bench.WithURL([]string{"http://fake.url"}),
 		bench.WithHTTPUserAgent("CustomUserAgent"),
 	)
 	if err != nil {
@@ -117,7 +117,7 @@ func TestNewTesterWithUserAgentXSetsUserAgentX(t *testing.T) {
 func TestNewTesterByDefaultSetsDefaultHTTPClient(t *testing.T) {
 	t.Parallel()
 	tester, err := bench.NewTester(
-		bench.WithURL("http://fake.url"),
+		bench.WithURL([]string{"http://fake.url"}),
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -133,7 +133,7 @@ func TestNewTesterByDefaultSetsDefaultHTTPClient(t *testing.T) {
 func TestNewTesterWithHTTPClientXSetsHTTPClientX(t *testing.T) {
 	t.Parallel()
 	tester, err := bench.NewTester(
-		bench.WithURL("http://fake.url"),
+		bench.WithURL([]string{"http://fake.url"}),
 		bench.WithHTTPClient(&http.Client{
 			Timeout: 45 * time.Second,
 		}),
@@ -159,7 +159,7 @@ func TestNewTesterWithInvalidURLReturnsError(t *testing.T) {
 	}
 	for _, url := range inputs {
 		_, err := bench.NewTester(
-			bench.WithURL(url),
+			bench.WithURL([]string{url}),
 		)
 		if err == nil {
 			t.Errorf("want error for invalid URL %q", url)
@@ -170,7 +170,7 @@ func TestNewTesterWithInvalidURLReturnsError(t *testing.T) {
 func TestNewTesterWithValidURLReturnsNoError(t *testing.T) {
 	t.Parallel()
 	_, err := bench.NewTester(
-		bench.WithURL("http://fake.url"),
+		bench.WithURL([]string{"http://fake.url"}),
 	)
 	if err != nil {
 		t.Errorf("error not expected but found: %q", err)
@@ -183,7 +183,7 @@ func TestRunReturnsValidStatsAndTime(t *testing.T) {
 		fmt.Fprintf(rw, "HelloWorld")
 	}))
 	tester, err := bench.NewTester(
-		bench.WithURL(server.URL),
+		bench.WithURL([]string{server.URL}),
 		bench.WithRequests(100),
 		bench.WithHTTPClient(server.Client()),
 		bench.WithStdout(io.Discard),
@@ -215,7 +215,7 @@ func TestRunReturnsValidStatsAndTime(t *testing.T) {
 func TestTimeRecorderCalledMultipleTimesSetCorrectStatsAndReturnsNoError(t *testing.T) {
 	t.Parallel()
 	tester, err := bench.NewTester(
-		bench.WithURL("http://fake.url"),
+		bench.WithURL([]string{"http://fake.url"}),
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -244,7 +244,7 @@ func TestTimeRecorderCalledMultipleTimesSetCorrectStatsAndReturnsNoError(t *test
 func TestSetMetricsReturnsErrorIfRecordTimeIsNotCalled(t *testing.T) {
 	t.Parallel()
 	tester, err := bench.NewTester(
-		bench.WithURL("http://fake.url"),
+		bench.WithURL([]string{"http://fake.url"}),
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -262,7 +262,7 @@ func TestLog(t *testing.T) {
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
 	tester, err := bench.NewTester(
-		bench.WithURL("http://fake.url"),
+		bench.WithURL([]string{"http://fake.url"}),
 		bench.WithStdout(stdout),
 		bench.WithStderr(stderr),
 	)
@@ -289,7 +289,7 @@ func TestLogf(t *testing.T) {
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
 	tester, err := bench.NewTester(
-		bench.WithURL("http://fake.url"),
+		bench.WithURL([]string{"http://fake.url"}),
 		bench.WithStdout(stdout),
 		bench.WithStderr(stderr),
 	)
@@ -310,7 +310,7 @@ func TestLogf(t *testing.T) {
 	}
 }
 
-func TestWithInputsBeforeURLNRequestsConfiguresNRequests(t *testing.T) {
+func TestWithInputsNRequestsSetsNRequests(t *testing.T) {
 	t.Parallel()
 	args := []string{"-r", "10", "http://fake.url"}
 	tester, err := bench.NewTester(
@@ -347,13 +347,13 @@ func TestNewTesterReturnsErrorIfNoURLSet(t *testing.T) {
 func TestWithURLSetsTesterURL(t *testing.T) {
 	t.Parallel()
 	tester, err := bench.NewTester(
-		bench.WithURL("https://example.com"),
+		bench.WithURL([]string{"https://example.com", "https://fake.url"}),
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := "https://example.com"
-	if want != tester.URL {
-		t.Fatalf("want tester URL %q, got %q", want, tester.URL)
+	want := []string{"https://example.com", "https://fake.url"}
+	if !cmp.Equal(want, tester.URL) {
+		t.Fatal(cmp.Diff(want, tester.URL))
 	}
 }
