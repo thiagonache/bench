@@ -262,10 +262,6 @@ func (t *Tester) SetMetrics() error {
 	return nil
 }
 
-func (t *Tester) SortExecutionsTime() {
-
-}
-
 type Stats struct {
 	Failures  uint64
 	Fastest   time.Duration
