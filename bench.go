@@ -38,7 +38,6 @@ type Tester struct {
 	URL            string
 	userAgent      string
 	wg             *sync.WaitGroup
-	work           chan string
 }
 
 func NewTester(opts ...Option) (*Tester, error) {
@@ -75,7 +74,6 @@ func NewTester(opts ...Option) (*Tester, error) {
 	if tester.requests < 1 {
 		return nil, fmt.Errorf("%d is invalid number of requests", tester.requests)
 	}
-	tester.work = make(chan string, tester.requests)
 	return tester, nil
 }
 
@@ -161,9 +159,9 @@ func (t Tester) Requests() int {
 	return t.requests
 }
 
-func (t *Tester) DoRequest(url string) {
+func (t *Tester) DoRequest() {
 	t.RecordRequest()
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	req, err := http.NewRequest(http.MethodGet, t.URL, nil)
 	if err != nil {
 		t.LogStdErr(err.Error())
 		t.RecordFailure()
@@ -173,13 +171,12 @@ func (t *Tester) DoRequest(url string) {
 	req.Header.Set("accept", "*/*")
 	startTime := time.Now()
 	resp, err := t.client.Do(req)
-	endTime := time.Now()
+	elapsedTime := time.Since(startTime)
 	if err != nil {
 		t.RecordFailure()
 		t.LogStdErr(err.Error())
 		return
 	}
-	elapsedTime := endTime.Sub(startTime)
 	t.TimeRecorder.RecordTime(elapsedTime)
 	if resp.StatusCode != http.StatusOK {
 		t.LogFStdErr("unexpected status code %d\n", resp.StatusCode)
@@ -192,17 +189,13 @@ func (t *Tester) DoRequest(url string) {
 func (t *Tester) Run() {
 	t.wg.Add(t.requests)
 	go func() {
-		for range time.NewTicker(time.Millisecond).C {
-			url := <-t.work
+		for x := 0; x < t.requests; x++ {
 			go func() {
-				t.DoRequest(url)
+				t.DoRequest()
 				t.wg.Done()
 			}()
 		}
 	}()
-	for x := 0; x < t.requests; x++ {
-		t.work <- t.URL
-	}
 	t.wg.Wait()
 	t.SetMetrics()
 	t.LogFStdOut("URL: %q benchmark is done\n", t.URL)
@@ -240,22 +233,23 @@ func (t Tester) LogFStdErr(msg string, opts ...interface{}) {
 }
 
 func (t *Tester) SetMetrics() error {
-	if len(t.TimeRecorder.ExecutionsTime) < 1 {
+	times := t.TimeRecorder.ExecutionsTime
+	if len(times) < 1 {
 		return ErrTimeNotRecorded
 	}
-	sort.Slice(t.TimeRecorder.ExecutionsTime, func(i, j int) bool {
-		return t.TimeRecorder.ExecutionsTime[i].Microseconds() < t.TimeRecorder.ExecutionsTime[j].Microseconds()
+	sort.Slice(times, func(i, j int) bool {
+		return times[i].Microseconds() < times[j].Microseconds()
 	})
-	perc90Index := int(math.Round(float64(len(t.TimeRecorder.ExecutionsTime))*0.9)) - 1
-	t.stats.Perc90 = t.TimeRecorder.ExecutionsTime[perc90Index]
-	perc99Index := int(math.Round(float64(len(t.TimeRecorder.ExecutionsTime))*0.99)) - 1
-	t.stats.Perc99 = t.TimeRecorder.ExecutionsTime[perc99Index]
+	perc90Index := int(math.Round(float64(len(times))*0.9)) - 1
+	t.stats.Perc90 = times[perc90Index]
+	perc99Index := int(math.Round(float64(len(times))*0.99)) - 1
+	t.stats.Perc99 = times[perc99Index]
 
 	nreq := 0
 	total := 0 * time.Millisecond
-	t.stats.Fastest = t.TimeRecorder.ExecutionsTime[0]
-	t.stats.Slowest = t.TimeRecorder.ExecutionsTime[0]
-	for _, v := range t.TimeRecorder.ExecutionsTime {
+	t.stats.Fastest = times[0]
+	t.stats.Slowest = times[0]
+	for _, v := range times {
 		nreq++
 		total += v
 		if v < t.stats.Fastest {
