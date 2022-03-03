@@ -1,14 +1,31 @@
 package bench
 
 import (
+	"errors"
+	"flag"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"net/url"
 	"os"
+	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
+)
+
+const (
+	DefaultNumRequests = 1
+	DefaultUserAgent   = "Bench 0.0.1 Alpha"
+)
+
+var (
+	DefaultHTTPClient = &http.Client{
+		Timeout: 30 * time.Second,
+	}
+	ErrNoURL           = errors.New("no URL to test")
+	ErrTimeNotRecorded = errors.New("no execution time recorded")
 )
 
 type Tester struct {
@@ -16,116 +33,150 @@ type Tester struct {
 	requests       int
 	startAt        time.Time
 	stats          Stats
-	userAgent      string
-	url            string
 	stdout, stderr io.Writer
-	wg             *sync.WaitGroup
-	work           chan string
 	TimeRecorder   TimeRecorder
+	URL            string
+	userAgent      string
+	wg             *sync.WaitGroup
 }
 
-func NewTester(URL string, opts ...Option) (*Tester, error) {
-	u, err := url.Parse(URL)
-	if err != nil {
-		return nil, err
-	}
-	if u.Scheme == "" || u.Host == "" {
-		return nil, fmt.Errorf("invalid URL %s", u)
-	}
+func NewTester(opts ...Option) (*Tester, error) {
 	tester := &Tester{
-		client:    &http.Client{Timeout: 30 * time.Second},
-		requests:  1,
-		userAgent: "Bench 0.0.1 Alpha",
-		url:       URL,
-		startAt:   time.Now(),
-		stdout:    os.Stdout,
-		stderr:    os.Stderr,
-		wg:        &sync.WaitGroup{},
-		stats:     Stats{},
+		client:   &http.Client{Timeout: 30 * time.Second},
+		requests: DefaultNumRequests,
+		startAt:  time.Now(),
+		stats:    Stats{},
+		stderr:   os.Stderr,
+		stdout:   os.Stdout,
 		TimeRecorder: TimeRecorder{
 			MU:             &sync.Mutex{},
 			ExecutionsTime: []time.Duration{},
 		},
+		userAgent: DefaultUserAgent,
+		wg:        &sync.WaitGroup{},
 	}
 	for _, o := range opts {
-		o(tester)
+		err := o(tester)
+		if err != nil {
+			return nil, err
+		}
 	}
-	if tester.requests == 0 {
+	if tester.URL == "" {
+		return nil, ErrNoURL
+	}
+	u, err := url.Parse(tester.URL)
+	if err != nil {
+		return nil, err
+	}
+	if u.Scheme == "" || u.Host == "" {
+		return nil, fmt.Errorf("invalid URL %q", u)
+	}
+	if tester.requests < 1 {
 		return nil, fmt.Errorf("%d is invalid number of requests", tester.requests)
 	}
-	tester.work = make(chan string, tester.requests)
 	return tester, nil
 }
 
 func WithRequests(reqs int) Option {
-	return func(lg *Tester) {
-		lg.requests = reqs
+	return func(t *Tester) error {
+		t.requests = reqs
+		return nil
 	}
 }
 
 func WithHTTPUserAgent(userAgent string) Option {
-	return func(lg *Tester) {
-		lg.userAgent = userAgent
+	return func(t *Tester) error {
+		t.userAgent = userAgent
+		return nil
 	}
 }
 
 func WithHTTPClient(client *http.Client) Option {
-	return func(lg *Tester) {
-		lg.client = client
+	return func(t *Tester) error {
+		t.client = client
+		return nil
 	}
 }
 
 func WithStdout(w io.Writer) Option {
-	return func(lg *Tester) {
-		lg.stdout = w
+	return func(t *Tester) error {
+		t.stdout = w
+		return nil
 	}
 }
 
 func WithStderr(w io.Writer) Option {
-	return func(lg *Tester) {
+	return func(lg *Tester) error {
 		lg.stderr = w
+		return nil
 	}
 }
 
-func (t Tester) GetHTTPUserAgent() string {
+func WithInputsFromArgs(args []string) Option {
+	return func(t *Tester) error {
+		fset := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+		fset.SetOutput(t.stderr)
+		reqs := fset.Int("r", 1, "number of requests to be performed in the benchmark")
+		err := fset.Parse(args)
+		if err != nil {
+			return err
+		}
+		args = fset.Args()
+		if len(args) < 1 {
+			fset.Usage()
+			return ErrNoURL
+		}
+		t.URL = args[0]
+		t.requests = *reqs
+		return nil
+	}
+}
+
+func WithURL(URL string) Option {
+	return func(t *Tester) error {
+		t.URL = URL
+		return nil
+	}
+}
+
+func (t Tester) HTTPUserAgent() string {
 	return t.userAgent
 }
 
-func (t Tester) GetHTTPClient() *http.Client {
+func (t Tester) HTTPClient() *http.Client {
 	return t.client
 }
 
-func (t Tester) GetStartTime() time.Time {
+func (t Tester) StartTime() time.Time {
 	return t.startAt
 }
 
-func (t Tester) GetStats() Stats {
+func (t Tester) Stats() Stats {
 	return t.stats
 }
 
-func (t Tester) GetRequests() int {
+func (t Tester) Requests() int {
 	return t.requests
 }
 
-func (t *Tester) DoRequest(url string) {
+func (t *Tester) DoRequest() {
 	t.RecordRequest()
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	req, err := http.NewRequest(http.MethodGet, t.URL, nil)
 	if err != nil {
 		t.LogStdErr(err.Error())
 		t.RecordFailure()
 		return
 	}
-	req.Header.Set("user-agent", t.GetHTTPUserAgent())
+	req.Header.Set("user-agent", t.HTTPUserAgent())
 	req.Header.Set("accept", "*/*")
-	startTime := Time()
+	startTime := time.Now()
 	resp, err := t.client.Do(req)
-	endTime := Time()
+	elapsedTime := time.Since(startTime)
 	if err != nil {
 		t.RecordFailure()
 		t.LogStdErr(err.Error())
 		return
 	}
-	elapsedTime := endTime.Sub(startTime)
 	t.TimeRecorder.RecordTime(elapsedTime)
 	if resp.StatusCode != http.StatusOK {
 		t.LogFStdErr("unexpected status code %d\n", resp.StatusCode)
@@ -138,22 +189,19 @@ func (t *Tester) DoRequest(url string) {
 func (t *Tester) Run() {
 	t.wg.Add(t.requests)
 	go func() {
-		for range time.NewTicker(time.Millisecond).C {
-			url := <-t.work
+		for x := 0; x < t.requests; x++ {
 			go func() {
-				t.DoRequest(url)
+				t.DoRequest()
 				t.wg.Done()
 			}()
 		}
 	}()
-	for x := 0; x < t.requests; x++ {
-		t.work <- t.url
-	}
 	t.wg.Wait()
-	t.SetFastestAndSlowest()
-	t.LogFStdOut("URL %q benchmark is done\n", t.url)
-	t.LogFStdOut("Time: %v Requests: %d Success: %d Failures: %d\n", time.Since(t.startAt), t.stats.Requests, t.stats.Success, t.stats.Failures)
-	t.LogFStdOut("Fastest: %v Slowest: %v\n", t.stats.Fastest, t.stats.Slowest)
+	t.SetMetrics()
+	t.LogFStdOut("URL: %q benchmark is done\n", t.URL)
+	t.LogFStdOut("Time: %v Requests: %d Success: %d Failures: %d\n", time.Since(t.startAt), t.stats.Requests, t.stats.Successes, t.stats.Failures)
+	t.LogFStdOut("90th percentile: %v 99th percentile: %v\n", t.stats.Perc90, t.stats.Perc99)
+	t.LogFStdOut("Fastest: %v Mean: %v Slowest: %v\n", t.stats.Fastest, t.stats.Mean, t.stats.Slowest)
 }
 
 func (t *Tester) RecordRequest() {
@@ -161,7 +209,7 @@ func (t *Tester) RecordRequest() {
 }
 
 func (t *Tester) RecordSuccess() {
-	atomic.AddUint64(&t.stats.Success, 1)
+	atomic.AddUint64(&t.stats.Successes, 1)
 }
 
 func (t *Tester) RecordFailure() {
@@ -184,32 +232,54 @@ func (t Tester) LogFStdErr(msg string, opts ...interface{}) {
 	fmt.Fprintf(t.stderr, msg, opts...)
 }
 
-func (t *Tester) SetFastestAndSlowest() {
-	t.stats.Fastest = t.TimeRecorder.ExecutionsTime[0]
-	t.stats.Slowest = t.TimeRecorder.ExecutionsTime[0]
-	for _, v := range t.TimeRecorder.ExecutionsTime {
+func (t *Tester) SetMetrics() error {
+	times := t.TimeRecorder.ExecutionsTime
+	if len(times) < 1 {
+		return ErrTimeNotRecorded
+	}
+	sort.Slice(times, func(i, j int) bool {
+		return times[i].Microseconds() < times[j].Microseconds()
+	})
+	perc90Index := int(math.Round(float64(len(times))*0.9)) - 1
+	t.stats.Perc90 = times[perc90Index]
+	perc99Index := int(math.Round(float64(len(times))*0.99)) - 1
+	t.stats.Perc99 = times[perc99Index]
+
+	nreq := 0
+	total := 0 * time.Millisecond
+	t.stats.Fastest = times[0]
+	t.stats.Slowest = times[0]
+	for _, v := range times {
+		nreq++
+		total += v
 		if v < t.stats.Fastest {
 			t.stats.Fastest = v
-		} else if v > t.stats.Slowest {
+			continue
+		}
+		if v > t.stats.Slowest {
 			t.stats.Slowest = v
 		}
 	}
+	t.stats.Mean = total / time.Duration(nreq)
+	return nil
 }
 
 type Stats struct {
-	Requests, Success, Failures uint64
-	Slowest, Fastest            time.Duration
+	Failures  uint64
+	Fastest   time.Duration
+	Mean      time.Duration
+	Perc90    time.Duration
+	Perc99    time.Duration
+	Requests  uint64
+	Slowest   time.Duration
+	Successes uint64
 }
 
-type Option func(*Tester)
-
-var Time = func() time.Time {
-	return time.Now()
-}
+type Option func(*Tester) error
 
 type TimeRecorder struct {
-	MU             *sync.Mutex
 	ExecutionsTime []time.Duration
+	MU             *sync.Mutex
 }
 
 func (t *TimeRecorder) RecordTime(executionTime time.Duration) {
