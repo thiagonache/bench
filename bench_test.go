@@ -220,24 +220,24 @@ func TestTimeRecorderCalledMultipleTimesSetCorrectStatsAndReturnsNoError(t *test
 	if err != nil {
 		t.Fatal(err)
 	}
-	tester.TimeRecorder.RecordTime(50 * time.Millisecond)
-	tester.TimeRecorder.RecordTime(100 * time.Millisecond)
-	tester.TimeRecorder.RecordTime(200 * time.Millisecond)
-	tester.TimeRecorder.RecordTime(100 * time.Millisecond)
-	tester.TimeRecorder.RecordTime(50 * time.Millisecond)
+	tester.TimeRecorder.RecordTime(50)
+	tester.TimeRecorder.RecordTime(100)
+	tester.TimeRecorder.RecordTime(200)
+	tester.TimeRecorder.RecordTime(100)
+	tester.TimeRecorder.RecordTime(50)
 
 	err = tester.SetMetrics()
 	if err != nil {
 		t.Fatal(err)
 	}
 	stats := tester.Stats()
-	if stats.Mean != 100*time.Millisecond {
+	if stats.Mean != 100 {
 		t.Errorf("want 100ms mean time, got %v", stats.Mean)
 	}
-	if stats.Slowest != 200*time.Millisecond {
+	if stats.Slowest != 200 {
 		t.Errorf("want slowest request time of 200ms, got %v", stats.Slowest)
 	}
-	if stats.Fastest != 50*time.Millisecond {
+	if stats.Fastest != 50 {
 		t.Errorf("want fastest request time of 50ms, got %v", stats.Fastest)
 	}
 }
@@ -250,23 +250,23 @@ func TestTimeRecorderCalledMultipleTimesSetCorrectPercentilesAndReturnsNoError(t
 	if err != nil {
 		t.Fatal(err)
 	}
-	tester.TimeRecorder.RecordTime(5 * time.Millisecond)
-	tester.TimeRecorder.RecordTime(6 * time.Millisecond)
-	tester.TimeRecorder.RecordTime(7 * time.Millisecond)
-	tester.TimeRecorder.RecordTime(8 * time.Millisecond)
-	tester.TimeRecorder.RecordTime(10 * time.Millisecond)
-	tester.TimeRecorder.RecordTime(11 * time.Millisecond)
-	tester.TimeRecorder.RecordTime(13 * time.Millisecond)
+	tester.TimeRecorder.RecordTime(5)
+	tester.TimeRecorder.RecordTime(6)
+	tester.TimeRecorder.RecordTime(7)
+	tester.TimeRecorder.RecordTime(8)
+	tester.TimeRecorder.RecordTime(10)
+	tester.TimeRecorder.RecordTime(11)
+	tester.TimeRecorder.RecordTime(13)
 
 	err = tester.SetMetrics()
 	if err != nil {
 		t.Fatal(err)
 	}
 	stats := tester.Stats()
-	if stats.Perc90 != 11*time.Millisecond {
+	if stats.Perc90 != 11 {
 		t.Errorf("want 90th percentile request time of 11ms, got %v", stats.Perc90)
 	}
-	if stats.Perc99 != 13*time.Millisecond {
+	if stats.Perc99 != 13 {
 		t.Errorf("want 99th percentile request time of 13ms, got %v", stats.Perc99)
 	}
 }

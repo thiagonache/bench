@@ -50,7 +50,7 @@ func NewTester(opts ...Option) (*Tester, error) {
 		stdout:   os.Stdout,
 		TimeRecorder: TimeRecorder{
 			MU:             &sync.Mutex{},
-			ExecutionsTime: []time.Duration{},
+			ExecutionsTime: []float64{},
 		},
 		userAgent: DefaultUserAgent,
 		wg:        &sync.WaitGroup{},
@@ -177,7 +177,7 @@ func (t *Tester) DoRequest() {
 		t.LogStdErr(err.Error())
 		return
 	}
-	t.TimeRecorder.RecordTime(elapsedTime)
+	t.TimeRecorder.RecordTime(float64(elapsedTime.Nanoseconds()) / 1000000.0)
 	if resp.StatusCode != http.StatusOK {
 		t.LogFStdErr("unexpected status code %d\n", resp.StatusCode)
 		t.RecordFailure()
@@ -203,6 +203,16 @@ func (t *Tester) Run() {
 	t.LogFStdOut("90th percentile: %v 99th percentile: %v\n", t.stats.Perc90, t.stats.Perc99)
 	t.LogFStdOut("Fastest: %v Mean: %v Slowest: %v\n", t.stats.Fastest, t.stats.Mean, t.stats.Slowest)
 }
+
+// func (t Tester) Boxplot() {
+// 	p := plot.New()
+// 	p.Title.Text = t.URL
+// 	p.Y.Label.Text = "% req"
+// 	p.X.Label.Text = "time?"
+// 	w := vg.Points(20)
+// 	t.TimeRecorder.
+// 	plotter.NewBoxPlot(w, 0, plotter.Values([]float64{1,2}))
+// }
 
 func (t *Tester) RecordRequest() {
 	atomic.AddUint64(&t.stats.Requests, 1)
@@ -238,20 +248,20 @@ func (t *Tester) SetMetrics() error {
 		return ErrTimeNotRecorded
 	}
 	sort.Slice(times, func(i, j int) bool {
-		return times[i].Microseconds() < times[j].Microseconds()
+		return times[i] < times[j]
 	})
 	perc90Index := int(math.Round(float64(len(times))*0.9)) - 1
 	t.stats.Perc90 = times[perc90Index]
 	perc99Index := int(math.Round(float64(len(times))*0.99)) - 1
 	t.stats.Perc99 = times[perc99Index]
 
-	nreq := 0
-	total := 0 * time.Millisecond
+	nreq := 0.0
+	totalTime := 0.0
 	t.stats.Fastest = times[0]
 	t.stats.Slowest = times[0]
 	for _, v := range times {
 		nreq++
-		total += v
+		totalTime += v
 		if v < t.stats.Fastest {
 			t.stats.Fastest = v
 			continue
@@ -260,29 +270,29 @@ func (t *Tester) SetMetrics() error {
 			t.stats.Slowest = v
 		}
 	}
-	t.stats.Mean = total / time.Duration(nreq)
+	t.stats.Mean = totalTime / nreq
 	return nil
 }
 
 type Stats struct {
 	Failures  uint64
-	Fastest   time.Duration
-	Mean      time.Duration
-	Perc90    time.Duration
-	Perc99    time.Duration
+	Fastest   float64
+	Mean      float64
+	Perc90    float64
+	Perc99    float64
 	Requests  uint64
-	Slowest   time.Duration
+	Slowest   float64
 	Successes uint64
 }
 
 type Option func(*Tester) error
 
 type TimeRecorder struct {
-	ExecutionsTime []time.Duration
+	ExecutionsTime []float64
 	MU             *sync.Mutex
 }
 
-func (t *TimeRecorder) RecordTime(executionTime time.Duration) {
+func (t *TimeRecorder) RecordTime(executionTime float64) {
 	t.MU.Lock()
 	defer t.MU.Unlock()
 	t.ExecutionsTime = append(t.ExecutionsTime, executionTime)
