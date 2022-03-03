@@ -254,7 +254,9 @@ func (t *Tester) SetMetrics() error {
 		total += v
 		if v < t.stats.Fastest {
 			t.stats.Fastest = v
-		} else if v > t.stats.Slowest {
+			continue
+		}
+		if v > t.stats.Slowest {
 			t.stats.Slowest = v
 		}
 	}
