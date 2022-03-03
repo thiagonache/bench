@@ -9,7 +9,7 @@ import (
 
 func main() {
 	tester, err := bench.NewTester(
-		bench.WithInputsFromArgs(os.Args[1:]),
+		bench.FromArgs(os.Args[1:]),
 	)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)

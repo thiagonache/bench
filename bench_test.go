@@ -340,12 +340,12 @@ func TestLogf(t *testing.T) {
 	}
 }
 
-func TestWithInputsBeforeURLNRequestsConfiguresNRequests(t *testing.T) {
+func TestFromArgsNRequestsConfiguresNRequests(t *testing.T) {
 	t.Parallel()
 	args := []string{"-r", "10", "http://fake.url"}
 	tester, err := bench.NewTester(
 		bench.WithStderr(io.Discard),
-		bench.WithInputsFromArgs(args),
+		bench.FromArgs(args),
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -357,6 +357,37 @@ func TestWithInputsBeforeURLNRequestsConfiguresNRequests(t *testing.T) {
 	}
 }
 
+func TestFromArgsGraphsFlagConfiguresGraphsMode(t *testing.T) {
+	t.Parallel()
+	args := []string{"-g", "http://fake.url"}
+	tester, err := bench.NewTester(
+		bench.WithStderr(io.Discard),
+		bench.FromArgs(args),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !tester.Graphs {
+		t.Error("want graphs to be true")
+	}
+}
+
+func TestFromArgsNoGraphsFlagConfiguresNoGraphsMode(t *testing.T) {
+	t.Parallel()
+	args := []string{"http://fake.url"}
+	tester, err := bench.NewTester(
+		bench.WithStderr(io.Discard),
+		bench.FromArgs(args),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tester.Graphs {
+		t.Error("want graphs to be false")
+	}
+}
+
+// func TestConfiguredGraphsFl
 func TestNewTesterReturnsErrorIfNoURLSet(t *testing.T) {
 	t.Parallel()
 	_, err := bench.NewTester(
@@ -367,7 +398,7 @@ func TestNewTesterReturnsErrorIfNoURLSet(t *testing.T) {
 	}
 	_, err = bench.NewTester(
 		bench.WithStderr(io.Discard),
-		bench.WithInputsFromArgs([]string{"-r", "10"}),
+		bench.FromArgs([]string{"-r", "10"}),
 	)
 	if !errors.Is(err, bench.ErrNoURL) {
 		t.Errorf("want ErrNoURL error if no URL set, got %q", err)

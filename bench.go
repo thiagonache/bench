@@ -13,6 +13,10 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"gonum.org/v1/plot"
+	"gonum.org/v1/plot/plotter"
+	"gonum.org/v1/plot/vg"
 )
 
 const (
@@ -38,6 +42,7 @@ type Tester struct {
 	URL            string
 	userAgent      string
 	wg             *sync.WaitGroup
+	Graphs         bool
 }
 
 func NewTester(opts ...Option) (*Tester, error) {
@@ -112,11 +117,12 @@ func WithStderr(w io.Writer) Option {
 	}
 }
 
-func WithInputsFromArgs(args []string) Option {
+func FromArgs(args []string) Option {
 	return func(t *Tester) error {
 		fset := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
 		fset.SetOutput(t.stderr)
 		reqs := fset.Int("r", 1, "number of requests to be performed in the benchmark")
+		graphs := fset.Bool("g", false, "generate graphs")
 		err := fset.Parse(args)
 		if err != nil {
 			return err
@@ -128,6 +134,7 @@ func WithInputsFromArgs(args []string) Option {
 		}
 		t.URL = args[0]
 		t.requests = *reqs
+		t.Graphs = *graphs
 		return nil
 	}
 }
@@ -198,21 +205,48 @@ func (t *Tester) Run() {
 	}()
 	t.wg.Wait()
 	t.SetMetrics()
+	t.Boxplot()
+	t.Histogram()
 	t.LogFStdOut("URL: %q benchmark is done\n", t.URL)
 	t.LogFStdOut("Time: %v Requests: %d Success: %d Failures: %d\n", time.Since(t.startAt), t.stats.Requests, t.stats.Successes, t.stats.Failures)
 	t.LogFStdOut("90th percentile: %v 99th percentile: %v\n", t.stats.Perc90, t.stats.Perc99)
 	t.LogFStdOut("Fastest: %v Mean: %v Slowest: %v\n", t.stats.Fastest, t.stats.Mean, t.stats.Slowest)
 }
 
-// func (t Tester) Boxplot() {
-// 	p := plot.New()
-// 	p.Title.Text = t.URL
-// 	p.Y.Label.Text = "% req"
-// 	p.X.Label.Text = "time?"
-// 	w := vg.Points(20)
-// 	t.TimeRecorder.
-// 	plotter.NewBoxPlot(w, 0, plotter.Values([]float64{1,2}))
-// }
+func (t Tester) Boxplot() error {
+	p := plot.New()
+	p.Title.Text = "Latency boxplot"
+	p.Y.Label.Text = "latency (ms)"
+	p.X.Label.Text = t.URL
+	w := vg.Points(20)
+	box, err := plotter.NewBoxPlot(w, 0, plotter.Values(t.TimeRecorder.ExecutionsTime))
+	if err != nil {
+		return err
+	}
+	p.Add(box)
+	err = p.Save(600, 400, "file.png")
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (t Tester) Histogram() error {
+	p := plot.New()
+	p.Title.Text = "Latency Histogram"
+	p.Y.Label.Text = "n reqs"
+	p.X.Label.Text = "latency (ms)"
+	hist, err := plotter.NewHist(plotter.Values(t.TimeRecorder.ExecutionsTime), 50)
+	if err != nil {
+		return err
+	}
+	p.Add(hist)
+	err = p.Save(600, 400, "histogram.png")
+	if err != nil {
+		return err
+	}
+	return nil
+}
 
 func (t *Tester) RecordRequest() {
 	atomic.AddUint64(&t.stats.Requests, 1)
