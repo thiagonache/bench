@@ -20,7 +20,9 @@ import (
 )
 
 const (
+	DefaultConcurrency = 1
 	DefaultNumRequests = 1
+	DefaultOutputPath  = "./"
 	DefaultUserAgent   = "Bench 0.0.1 Alpha"
 )
 
@@ -33,7 +35,10 @@ var (
 )
 
 type Tester struct {
+	Concurrency    int
 	client         *http.Client
+	Graphs         bool
+	OutputPath     string
 	requests       int
 	startAt        time.Time
 	stats          Stats
@@ -42,20 +47,22 @@ type Tester struct {
 	URL            string
 	userAgent      string
 	wg             *sync.WaitGroup
-	Graphs         bool
+	work           chan struct{}
 }
 
 func NewTester(opts ...Option) (*Tester, error) {
 	tester := &Tester{
-		client:   &http.Client{Timeout: 30 * time.Second},
-		requests: DefaultNumRequests,
-		startAt:  time.Now(),
-		stats:    Stats{},
-		stderr:   os.Stderr,
-		stdout:   os.Stdout,
+		client:      &http.Client{Timeout: 30 * time.Second},
+		Concurrency: DefaultConcurrency,
+		OutputPath:  DefaultOutputPath,
+		requests:    DefaultNumRequests,
+		startAt:     time.Now(),
+		stats:       Stats{},
+		stderr:      os.Stderr,
+		stdout:      os.Stdout,
 		TimeRecorder: TimeRecorder{
-			MU:             &sync.Mutex{},
 			ExecutionsTime: []float64{},
+			MU:             &sync.Mutex{},
 		},
 		userAgent: DefaultUserAgent,
 		wg:        &sync.WaitGroup{},
@@ -79,6 +86,7 @@ func NewTester(opts ...Option) (*Tester, error) {
 	if tester.requests < 1 {
 		return nil, fmt.Errorf("%d is invalid number of requests", tester.requests)
 	}
+	tester.work = make(chan struct{}, tester.requests)
 	return tester, nil
 }
 
@@ -117,6 +125,13 @@ func WithStderr(w io.Writer) Option {
 	}
 }
 
+func WithConcurrency(c int) Option {
+	return func(lg *Tester) error {
+		lg.Concurrency = c
+		return nil
+	}
+}
+
 func FromArgs(args []string) Option {
 	return func(t *Tester) error {
 		fset := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
@@ -142,6 +157,13 @@ func FromArgs(args []string) Option {
 func WithURL(URL string) Option {
 	return func(t *Tester) error {
 		t.URL = URL
+		return nil
+	}
+}
+
+func WithOutputPath(outputPath string) Option {
+	return func(t *Tester) error {
+		t.OutputPath = outputPath
 		return nil
 	}
 }
@@ -193,7 +215,7 @@ func (t *Tester) DoRequest() {
 	t.RecordSuccess()
 }
 
-func (t *Tester) Run() {
+func (t *Tester) Run() error {
 	t.wg.Add(t.requests)
 	go func() {
 		for x := 0; x < t.requests; x++ {
@@ -204,13 +226,25 @@ func (t *Tester) Run() {
 		}
 	}()
 	t.wg.Wait()
-	t.SetMetrics()
-	t.Boxplot()
-	t.Histogram()
+	err := t.SetMetrics()
+	if err != nil {
+		return err
+	}
+	if t.Graphs {
+		err = t.Boxplot()
+		if err != nil {
+			return err
+		}
+		err = t.Histogram()
+		if err != nil {
+			return err
+		}
+	}
 	t.LogFStdOut("URL: %q benchmark is done\n", t.URL)
 	t.LogFStdOut("Time: %v Requests: %d Success: %d Failures: %d\n", time.Since(t.startAt), t.stats.Requests, t.stats.Successes, t.stats.Failures)
 	t.LogFStdOut("90th percentile: %v 99th percentile: %v\n", t.stats.Perc90, t.stats.Perc99)
 	t.LogFStdOut("Fastest: %v Mean: %v Slowest: %v\n", t.stats.Fastest, t.stats.Mean, t.stats.Slowest)
+	return nil
 }
 
 func (t Tester) Boxplot() error {
@@ -224,7 +258,7 @@ func (t Tester) Boxplot() error {
 		return err
 	}
 	p.Add(box)
-	err = p.Save(600, 400, "file.png")
+	err = p.Save(600, 400, fmt.Sprintf("%s/%s", t.OutputPath, "boxplot.png"))
 	if err != nil {
 		return err
 	}
@@ -241,7 +275,7 @@ func (t Tester) Histogram() error {
 		return err
 	}
 	p.Add(hist)
-	err = p.Save(600, 400, "histogram.png")
+	err = p.Save(600, 400, fmt.Sprintf("%s/%s", t.OutputPath, "histogram.png"))
 	if err != nil {
 		return err
 	}

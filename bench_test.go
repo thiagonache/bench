@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 	"time"
 
@@ -29,7 +30,10 @@ func TestNonOKStatusRecordedAsFailure(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	tester.Run()
+	err = tester.Run()
+	if err != nil {
+		t.Fatal(err)
+	}
 	stats := tester.Stats()
 	if stats.Requests != 1 {
 		t.Errorf("want 1 request, got %d", stats.Requests)
@@ -57,6 +61,52 @@ func TestNewTesterByDefaultIsConfiguredForDefaultNumRequests(t *testing.T) {
 	}
 }
 
+func TestNewTesterByDefaultIsConfiguredForDefaultOutputPath(t *testing.T) {
+	t.Parallel()
+	tester, err := bench.NewTester(
+		bench.WithURL("http://fake.url"),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := bench.DefaultOutputPath
+	got := tester.OutputPath
+	if want != got {
+		t.Errorf("want tester output path for default output path (%q), got %q", want, got)
+	}
+}
+
+func TestNewTesterByDefaultIsConfiguredForDefaultConcurrency(t *testing.T) {
+	t.Parallel()
+	tester, err := bench.NewTester(
+		bench.WithURL("http://fake.url"),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := bench.DefaultConcurrency
+	got := tester.Concurrency
+	if want != got {
+		t.Errorf("want tester concurrency for default concurrency (%d), got %d", want, got)
+	}
+}
+
+func TestNewTesterWithOutputPathIsConfiguredForOutputPath(t *testing.T) {
+	t.Parallel()
+	tester, err := bench.NewTester(
+		bench.WithURL("http://fake.url"),
+		bench.WithOutputPath("/tmp"),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "/tmp"
+	got := tester.OutputPath
+	if want != got {
+		t.Errorf("want tester output path configured for /tmp, got %q", got)
+	}
+}
+
 func TestNewTesterWithNRequestsIsConfiguredForNRequests(t *testing.T) {
 	t.Parallel()
 	tester, err := bench.NewTester(
@@ -69,6 +119,21 @@ func TestNewTesterWithNRequestsIsConfiguredForNRequests(t *testing.T) {
 	got := tester.Requests()
 	if got != 10 {
 		t.Errorf("want tester configured for 10 requests, got %d", got)
+	}
+}
+
+func TestNewTesterWithNConcurrentRequestsIsConfiguredForNConcurrentRequests(t *testing.T) {
+	t.Parallel()
+	tester, err := bench.NewTester(
+		bench.WithURL("http://fake.url"),
+		bench.WithConcurrency(10),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := tester.Concurrency
+	if got != 10 {
+		t.Errorf("want tester configured for 10 concurrent requests, got %d", got)
 	}
 }
 
@@ -192,7 +257,10 @@ func TestRunReturnsValidStatsAndTime(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	tester.Run()
+	err = tester.Run()
+	if err != nil {
+		t.Fatal(err)
+	}
 	stats := tester.Stats()
 	if stats.Requests != 100 {
 		t.Errorf("want 100 requests made, got %d", stats.Requests)
@@ -286,7 +354,7 @@ func TestSetMetricsReturnsErrorIfRecordTimeIsNotCalled(t *testing.T) {
 	}
 }
 
-func TestLog(t *testing.T) {
+func TestLogPrintsToStdoutAndStderr(t *testing.T) {
 	t.Parallel()
 
 	stdout := &bytes.Buffer{}
@@ -314,7 +382,7 @@ func TestLog(t *testing.T) {
 	}
 }
 
-func TestLogf(t *testing.T) {
+func TestLogfPrintsToStdoutAndStderr(t *testing.T) {
 	t.Parallel()
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
@@ -387,7 +455,76 @@ func TestFromArgsNoGraphsFlagConfiguresNoGraphsMode(t *testing.T) {
 	}
 }
 
-// func TestConfiguredGraphsFl
+func TestConfiguredGraphsFlagGenerateGraphs(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewTLSServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(rw, "HelloWorld")
+	}))
+	tempDir := t.TempDir()
+	tester, err := bench.NewTester(
+		bench.WithURL(server.URL),
+		bench.WithHTTPClient(server.Client()),
+		bench.WithStdout(io.Discard),
+		bench.WithStderr(io.Discard),
+		bench.WithOutputPath(tempDir),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tester.Graphs = true
+	err = tester.Run()
+	if err != nil {
+		t.Fatal(err)
+	}
+	filePath := fmt.Sprintf("%s/%s", tempDir, "boxplot.png")
+	_, err = os.Stat(filePath)
+	if err != nil {
+		t.Errorf("want file %q to exist", filePath)
+	}
+	filePath = fmt.Sprintf("%s/%s", tempDir, "histogram.png")
+	_, err = os.Stat(filePath)
+	if err != nil {
+		t.Errorf("want file %q to exist", "histogram.png")
+	}
+	t.Cleanup(func() {
+		err := os.RemoveAll(tempDir)
+		if err != nil {
+			fmt.Printf("cannot delete %s\n", tempDir)
+		}
+	})
+}
+
+func TestUnconfiguredGraphsFlagDoesNotGenerateGraphs(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewTLSServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(rw, "HelloWorld")
+	}))
+	tester, err := bench.NewTester(
+		bench.WithURL(server.URL),
+		bench.WithHTTPClient(server.Client()),
+		bench.WithStdout(io.Discard),
+		bench.WithStderr(io.Discard),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = tester.Run()
+	if err != nil {
+		t.Fatal(err)
+	}
+	filePath := fmt.Sprintf("%s/%s", tester.OutputPath, "boxplot.png")
+	_, err = os.Stat(filePath)
+	if err == nil {
+		t.Errorf("want file %q to not exist. Error found: %v", filePath, err)
+	}
+	filePath = fmt.Sprintf("%s/%s", tester.OutputPath, "histogram.png")
+	_, err = os.Stat(filePath)
+	if err == nil {
+		t.Errorf("want file %q to not exist. Error found: %v", filePath, err)
+	}
+}
+
 func TestNewTesterReturnsErrorIfNoURLSet(t *testing.T) {
 	t.Parallel()
 	_, err := bench.NewTester(
