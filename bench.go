@@ -86,7 +86,7 @@ func NewTester(opts ...Option) (*Tester, error) {
 	if tester.requests < 1 {
 		return nil, fmt.Errorf("%d is invalid number of requests", tester.requests)
 	}
-	tester.work = make(chan struct{}, tester.requests)
+	tester.work = make(chan struct{})
 	return tester, nil
 }
 
@@ -189,36 +189,44 @@ func (t Tester) Requests() int {
 }
 
 func (t *Tester) DoRequest() {
-	t.RecordRequest()
-	req, err := http.NewRequest(http.MethodGet, t.URL, nil)
-	if err != nil {
-		t.LogStdErr(err.Error())
-		t.RecordFailure()
-		return
+	for range t.work {
+		t.RecordRequest()
+		req, err := http.NewRequest(http.MethodGet, t.URL, nil)
+		if err != nil {
+			t.LogStdErr(err.Error())
+			t.RecordFailure()
+			return
+		}
+		req.Header.Set("user-agent", t.HTTPUserAgent())
+		req.Header.Set("accept", "*/*")
+		startTime := time.Now()
+		resp, err := t.client.Do(req)
+		elapsedTime := time.Since(startTime)
+		if err != nil {
+			t.RecordFailure()
+			t.LogStdErr(err.Error())
+			return
+		}
+		t.TimeRecorder.RecordTime(float64(elapsedTime.Nanoseconds()) / 1000000.0)
+		if resp.StatusCode != http.StatusOK {
+			t.LogFStdErr("unexpected status code %d\n", resp.StatusCode)
+			t.RecordFailure()
+			return
+		}
+		t.RecordSuccess()
 	}
-	req.Header.Set("user-agent", t.HTTPUserAgent())
-	req.Header.Set("accept", "*/*")
-	startTime := time.Now()
-	resp, err := t.client.Do(req)
-	elapsedTime := time.Since(startTime)
-	if err != nil {
-		t.RecordFailure()
-		t.LogStdErr(err.Error())
-		return
-	}
-	t.TimeRecorder.RecordTime(float64(elapsedTime.Nanoseconds()) / 1000000.0)
-	if resp.StatusCode != http.StatusOK {
-		t.LogFStdErr("unexpected status code %d\n", resp.StatusCode)
-		t.RecordFailure()
-		return
-	}
-	t.RecordSuccess()
 }
 
 func (t *Tester) Run() error {
-	t.wg.Add(t.requests)
+	t.wg.Add(t.Concurrency)
 	go func() {
 		for x := 0; x < t.requests; x++ {
+			t.work <- struct{}{}
+		}
+		close(t.work)
+	}()
+	go func() {
+		for x := 0; x < t.Concurrency; x++ {
 			go func() {
 				t.DoRequest()
 				t.wg.Done()

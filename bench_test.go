@@ -249,6 +249,7 @@ func TestRunReturnsValidStatsAndTime(t *testing.T) {
 	}))
 	tester, err := bench.NewTester(
 		bench.WithURL(server.URL),
+		bench.WithConcurrency(10),
 		bench.WithRequests(100),
 		bench.WithHTTPClient(server.Client()),
 		bench.WithStdout(io.Discard),
