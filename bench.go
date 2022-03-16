@@ -47,7 +47,7 @@ type Tester struct {
 	URL            string
 	userAgent      string
 	wg             *sync.WaitGroup
-	work           chan struct{}
+	Work           chan struct{}
 }
 
 func NewTester(opts ...Option) (*Tester, error) {
@@ -86,7 +86,7 @@ func NewTester(opts ...Option) (*Tester, error) {
 	if tester.requests < 1 {
 		return nil, fmt.Errorf("%d is invalid number of requests", tester.requests)
 	}
-	tester.work = make(chan struct{})
+	tester.Work = make(chan struct{})
 	return tester, nil
 }
 
@@ -189,7 +189,7 @@ func (t Tester) Requests() int {
 }
 
 func (t *Tester) DoRequest() {
-	for range t.work {
+	for range t.Work {
 		t.RecordRequest()
 		req, err := http.NewRequest(http.MethodGet, t.URL, nil)
 		if err != nil {
@@ -221,9 +221,9 @@ func (t *Tester) Run() error {
 	t.wg.Add(t.Concurrency)
 	go func() {
 		for x := 0; x < t.requests; x++ {
-			t.work <- struct{}{}
+			t.Work <- struct{}{}
 		}
-		close(t.work)
+		close(t.Work)
 	}()
 	go func() {
 		for x := 0; x < t.Concurrency; x++ {
