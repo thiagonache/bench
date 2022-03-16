@@ -61,6 +61,21 @@ func TestNewTesterByDefaultIsConfiguredForDefaultNumRequests(t *testing.T) {
 	}
 }
 
+func TestNewTesterConfiguresWorkChannelByDefaultAsUnbufferedChannel(t *testing.T) {
+	t.Parallel()
+	tester, err := bench.NewTester(
+		bench.WithURL("http://fake.url"),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := 0
+	got := len(tester.Work)
+	if want != got {
+		t.Errorf("want tester work channel is unbuffered, got %d", got)
+	}
+}
+
 func TestNewTesterByDefaultIsConfiguredForDefaultOutputPath(t *testing.T) {
 	t.Parallel()
 	tester, err := bench.NewTester(
@@ -542,7 +557,7 @@ func TestNewTesterReturnsErrorIfNoURLSet(t *testing.T) {
 	}
 }
 
-func TestWithURLSetsTesterURL(t *testing.T) {
+func TestNewTesterWithURLSetsTesterURL(t *testing.T) {
 	t.Parallel()
 	tester, err := bench.NewTester(
 		bench.WithURL("https://example.com"),
