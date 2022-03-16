@@ -491,20 +491,20 @@ func TestConfiguredGraphsFlagGenerateGraphs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	filePath := fmt.Sprintf("%s/%s", tempDir, "boxplot.png")
+	filePath := fmt.Sprintf("%s/%s", tester.OutputPath, "boxplot.png")
 	_, err = os.Stat(filePath)
 	if err != nil {
 		t.Errorf("want file %q to exist", filePath)
 	}
-	filePath = fmt.Sprintf("%s/%s", tempDir, "histogram.png")
+	filePath = fmt.Sprintf("%s/%s", tester.OutputPath, "histogram.png")
 	_, err = os.Stat(filePath)
 	if err != nil {
 		t.Errorf("want file %q to exist", "histogram.png")
 	}
 	t.Cleanup(func() {
-		err := os.RemoveAll(tempDir)
+		err := os.RemoveAll(tester.OutputPath)
 		if err != nil {
-			fmt.Printf("cannot delete %s\n", tempDir)
+			fmt.Printf("cannot delete %s\n", tester.OutputPath)
 		}
 	})
 }
@@ -515,11 +515,13 @@ func TestUnconfiguredGraphsFlagDoesNotGenerateGraphs(t *testing.T) {
 	server := httptest.NewTLSServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(rw, "HelloWorld")
 	}))
+	tempDir := t.TempDir()
 	tester, err := bench.NewTester(
 		bench.WithURL(server.URL),
 		bench.WithHTTPClient(server.Client()),
 		bench.WithStdout(io.Discard),
 		bench.WithStderr(io.Discard),
+		bench.WithOutputPath(tempDir),
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -538,6 +540,12 @@ func TestUnconfiguredGraphsFlagDoesNotGenerateGraphs(t *testing.T) {
 	if err == nil {
 		t.Errorf("want file %q to not exist. Error found: %v", filePath, err)
 	}
+	t.Cleanup(func() {
+		err := os.RemoveAll(tester.OutputPath)
+		if err != nil {
+			fmt.Printf("cannot delete %s\n", tester.OutputPath)
+		}
+	})
 }
 
 func TestNewTesterReturnsErrorIfNoURLSet(t *testing.T) {
