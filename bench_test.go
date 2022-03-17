@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -568,13 +569,46 @@ func TestNewTesterReturnsErrorIfNoURLSet(t *testing.T) {
 func TestNewTesterWithURLSetsTesterURL(t *testing.T) {
 	t.Parallel()
 	tester, err := bench.NewTester(
-		bench.WithURL("https://example.com"),
+		bench.WithURL("http://fake.url"),
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := "https://example.com"
+	want := "http://fake.url"
 	if want != tester.URL {
 		t.Fatalf("want tester URL %q, got %q", want, tester.URL)
+	}
+}
+
+func TestReadStatsFilePopulatesCorrectStats(t *testing.T) {
+	t.Parallel()
+	statsFileReader := strings.NewReader(`http://fake.url,100`)
+	got, err := bench.ReadStatsFile(statsFileReader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []bench.Stats{{
+		Mean: 100,
+	}}
+	if !cmp.Equal(want, got) {
+		t.Error(cmp.Diff(want, got))
+	}
+}
+
+func TestCompareStatsReturnsCorrectStatsDelta(t *testing.T) {
+	t.Parallel()
+	stats1 := bench.Stats{
+		Mean: 20,
+	}
+	stats2 := bench.Stats{
+		Mean: 5,
+	}
+	got := bench.CompareStats(stats1, stats2)
+	want := bench.StatsDelta{
+		Mean:     15,
+		MeanPerc: 75,
+	}
+	if !cmp.Equal(want, got) {
+		t.Error(cmp.Diff(want, got))
 	}
 }

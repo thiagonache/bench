@@ -1,6 +1,7 @@
 package bench
 
 import (
+	"bufio"
 	"errors"
 	"flag"
 	"fmt"
@@ -10,6 +11,8 @@ import (
 	"net/url"
 	"os"
 	"sort"
+	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -361,7 +364,10 @@ type Stats struct {
 	Successes uint64
 }
 
-type Option func(*Tester) error
+type StatsDelta struct {
+	Mean     float64
+	MeanPerc float64
+}
 
 type TimeRecorder struct {
 	ExecutionsTime []float64
@@ -372,4 +378,33 @@ func (t *TimeRecorder) RecordTime(executionTime float64) {
 	t.MU.Lock()
 	defer t.MU.Unlock()
 	t.ExecutionsTime = append(t.ExecutionsTime, executionTime)
+}
+
+type Option func(*Tester) error
+
+func CompareStats(stats1, stats2 Stats) StatsDelta {
+	statsDelta := StatsDelta{}
+	statsDelta.Mean = stats1.Mean - stats2.Mean
+	statsDelta.MeanPerc = statsDelta.Mean / stats1.Mean * 100
+	return statsDelta
+}
+
+func ReadStatsFile(r io.Reader) ([]Stats, error) {
+	scanner := bufio.NewScanner(r)
+	stats := []Stats{}
+	for scanner.Scan() {
+		pos := strings.Split(scanner.Text(), ",")
+		mean := pos[1]
+		conv, err := strconv.Atoi(mean)
+		if err != nil {
+			return nil, err
+		}
+		stats = append(stats, Stats{
+			Mean: float64(conv),
+		})
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+	return stats, nil
 }
