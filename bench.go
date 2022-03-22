@@ -31,31 +31,32 @@ const (
 
 var (
 	DefaultHTTPClient = &http.Client{
-		Timeout: 30 * time.Second,
+		Timeout: 5 * time.Second,
 	}
 	ErrNoURL           = errors.New("no URL to test")
 	ErrTimeNotRecorded = errors.New("no execution time recorded")
 )
 
 type Tester struct {
-	Concurrency    int
-	client         *http.Client
-	Graphs         bool
-	OutputPath     string
-	requests       int
-	startAt        time.Time
-	stats          Stats
-	stdout, stderr io.Writer
-	TimeRecorder   TimeRecorder
-	URL            string
-	userAgent      string
-	wg             *sync.WaitGroup
-	Work           chan struct{}
+	Concurrency       int
+	client            *http.Client
+	Graphs            bool
+	OutputPath        string
+	requests          int
+	startAt           time.Time
+	stats             Stats
+	stdout, stderr    io.Writer
+	TimeRecorder      TimeRecorder
+	URL               string
+	userAgent         string
+	wg                *sync.WaitGroup
+	Work              chan struct{}
+	PreviousStatsFile string
 }
 
 func NewTester(opts ...Option) (*Tester, error) {
 	tester := &Tester{
-		client:      &http.Client{Timeout: 30 * time.Second},
+		client:      DefaultHTTPClient,
 		Concurrency: DefaultConcurrency,
 		OutputPath:  DefaultOutputPath,
 		requests:    DefaultNumRequests,
@@ -83,7 +84,7 @@ func NewTester(opts ...Option) (*Tester, error) {
 	if err != nil {
 		return nil, err
 	}
-	if u.Scheme == "" || u.Host == "" {
+	if u.Host == "" {
 		return nil, fmt.Errorf("invalid URL %q", u)
 	}
 	if tester.requests < 1 {
@@ -135,12 +136,21 @@ func WithConcurrency(c int) Option {
 	}
 }
 
+func WithPreviousStatsFile(f string) Option {
+	return func(lg *Tester) error {
+		lg.PreviousStatsFile = f
+		return nil
+	}
+}
+
 func FromArgs(args []string) Option {
 	return func(t *Tester) error {
 		fset := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
 		fset.SetOutput(t.stderr)
 		reqs := fset.Int("r", 1, "number of requests to be performed in the benchmark")
 		graphs := fset.Bool("g", false, "generate graphs")
+		concurrency := fset.Int("c", 1, "number of concurrent requests (users) to run benchmark")
+		prevStatsFile := fset.String("previous-stats-file", "", "previous stats file to be compared with current run")
 		err := fset.Parse(args)
 		if err != nil {
 			return err
@@ -153,6 +163,8 @@ func FromArgs(args []string) Option {
 		t.URL = args[0]
 		t.requests = *reqs
 		t.Graphs = *graphs
+		t.Concurrency = *concurrency
+		t.PreviousStatsFile = *prevStatsFile
 		return nil
 	}
 }
@@ -354,6 +366,7 @@ func (t *Tester) SetMetrics() error {
 }
 
 type Stats struct {
+	URL       string
 	Failures  uint64
 	Fastest   float64
 	Mean      float64
@@ -384,7 +397,7 @@ type Option func(*Tester) error
 
 func CompareStats(stats1, stats2 Stats) StatsDelta {
 	statsDelta := StatsDelta{}
-	statsDelta.Mean = stats1.Mean - stats2.Mean
+	statsDelta.Mean = stats2.Mean - stats1.Mean
 	statsDelta.MeanPerc = statsDelta.Mean / stats1.Mean * 100
 	return statsDelta
 }
@@ -394,6 +407,7 @@ func ReadStatsFile(r io.Reader) ([]Stats, error) {
 	stats := []Stats{}
 	for scanner.Scan() {
 		pos := strings.Split(scanner.Text(), ",")
+		url := pos[0]
 		mean := pos[1]
 		conv, err := strconv.Atoi(mean)
 		if err != nil {
@@ -401,6 +415,7 @@ func ReadStatsFile(r io.Reader) ([]Stats, error) {
 		}
 		stats = append(stats, Stats{
 			Mean: float64(conv),
+			URL:  url,
 		})
 	}
 	if err := scanner.Err(); err != nil {

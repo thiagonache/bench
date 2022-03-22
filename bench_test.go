@@ -107,6 +107,38 @@ func TestNewTesterByDefaultIsConfiguredForDefaultConcurrency(t *testing.T) {
 	}
 }
 
+func TestNewTesterWithNConcurrentRequestsIsConfiguredForNConcurrentRequests(t *testing.T) {
+	t.Parallel()
+	tester, err := bench.NewTester(
+		bench.WithURL("http://fake.url"),
+		bench.WithConcurrency(10),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := tester.Concurrency
+	if got != 10 {
+		t.Errorf("want tester configured for 10 concurrent requests, got %d", got)
+	}
+}
+
+func TestFromArgsNConcurrencyConfiguresNConcurrency(t *testing.T) {
+	t.Parallel()
+	args := []string{"-c", "10", "http://fake.url"}
+	tester, err := bench.NewTester(
+		bench.WithStderr(io.Discard),
+		bench.FromArgs(args),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := 10
+	got := tester.Concurrency
+	if want != got {
+		t.Errorf("reqs: want %d, got %d", want, got)
+	}
+}
+
 func TestNewTesterWithOutputPathIsConfiguredForOutputPath(t *testing.T) {
 	t.Parallel()
 	tester, err := bench.NewTester(
@@ -135,21 +167,6 @@ func TestNewTesterWithNRequestsIsConfiguredForNRequests(t *testing.T) {
 	got := tester.Requests()
 	if got != 10 {
 		t.Errorf("want tester configured for 10 requests, got %d", got)
-	}
-}
-
-func TestNewTesterWithNConcurrentRequestsIsConfiguredForNConcurrentRequests(t *testing.T) {
-	t.Parallel()
-	tester, err := bench.NewTester(
-		bench.WithURL("http://fake.url"),
-		bench.WithConcurrency(10),
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	got := tester.Concurrency
-	if got != 10 {
-		t.Errorf("want tester configured for 10 concurrent requests, got %d", got)
 	}
 }
 
@@ -580,6 +597,38 @@ func TestNewTesterWithURLSetsTesterURL(t *testing.T) {
 	}
 }
 
+func TestNewTesterWithPreviousStatsFileSetsTesterPreviousStatsFile(t *testing.T) {
+	t.Parallel()
+	tester, err := bench.NewTester(
+		bench.WithURL("http://fake.url"),
+		bench.WithPreviousStatsFile("testdata/statsfile.out"),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "testdata/statsfile.out"
+	if want != tester.PreviousStatsFile {
+		t.Fatalf("want previous stats file %q, got %q", want, tester.PreviousStatsFile)
+	}
+}
+
+func TestFromArgsPreviousStatsFileConfiguresPreviousStatsFile(t *testing.T) {
+	t.Parallel()
+	args := []string{"-previous-stats-file", "/tmp/statsfile", "http://fake.url"}
+	tester, err := bench.NewTester(
+		bench.WithStderr(io.Discard),
+		bench.FromArgs(args),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "/tmp/statsfile"
+	got := tester.PreviousStatsFile
+	if want != got {
+		t.Errorf("want previous state file %q, got %q", want, got)
+	}
+}
+
 func TestReadStatsFilePopulatesCorrectStats(t *testing.T) {
 	t.Parallel()
 	statsFileReader := strings.NewReader(`http://fake.url,100`)
@@ -587,9 +636,12 @@ func TestReadStatsFilePopulatesCorrectStats(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []bench.Stats{{
-		Mean: 100,
-	}}
+	want := []bench.Stats{
+		{
+			Mean: 100,
+			URL:  "http://fake.url",
+		},
+	}
 	if !cmp.Equal(want, got) {
 		t.Error(cmp.Diff(want, got))
 	}
@@ -605,8 +657,8 @@ func TestCompareStatsReturnsCorrectStatsDelta(t *testing.T) {
 	}
 	got := bench.CompareStats(stats1, stats2)
 	want := bench.StatsDelta{
-		Mean:     15,
-		MeanPerc: 75,
+		Mean:     -15,
+		MeanPerc: -75,
 	}
 	if !cmp.Equal(want, got) {
 		t.Error(cmp.Diff(want, got))
