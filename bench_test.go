@@ -458,6 +458,35 @@ func TestFromArgsNRequestsConfiguresNRequests(t *testing.T) {
 	}
 }
 
+func TestNewTesterWithGraphsSetsGraphsMode(t *testing.T) {
+	t.Parallel()
+	tester, err := bench.NewTester(
+		bench.WithURL("http://fake.url"),
+		bench.WithStderr(io.Discard),
+		bench.WithGraphs(true),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !tester.Graphs {
+		t.Error("want graphs to be true")
+	}
+}
+
+func TestNewTesterWithNoGraphsSetsNoGraphsMode(t *testing.T) {
+	t.Parallel()
+	tester, err := bench.NewTester(
+		bench.WithURL("http://fake.url"),
+		bench.WithStderr(io.Discard),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tester.Graphs {
+		t.Error("want graphs to be false")
+	}
+}
+
 func TestFromArgsGraphsFlagConfiguresGraphsMode(t *testing.T) {
 	t.Parallel()
 	args := []string{"-g", "http://fake.url"}
@@ -566,23 +595,6 @@ func TestUnconfiguredGraphsFlagDoesNotGenerateGraphs(t *testing.T) {
 	})
 }
 
-func TestNewTesterReturnsErrorIfNoURLSet(t *testing.T) {
-	t.Parallel()
-	_, err := bench.NewTester(
-		bench.WithStderr(io.Discard),
-	)
-	if !errors.Is(err, bench.ErrNoURL) {
-		t.Errorf("want ErrNoURL error if no URL set, got %q", err)
-	}
-	_, err = bench.NewTester(
-		bench.WithStderr(io.Discard),
-		bench.FromArgs([]string{"-r", "10"}),
-	)
-	if !errors.Is(err, bench.ErrNoURL) {
-		t.Errorf("want ErrNoURL error if no URL set, got %q", err)
-	}
-}
-
 func TestNewTesterWithURLSetsTesterURL(t *testing.T) {
 	t.Parallel()
 	tester, err := bench.NewTester(
@@ -597,35 +609,39 @@ func TestNewTesterWithURLSetsTesterURL(t *testing.T) {
 	}
 }
 
-func TestNewTesterWithPreviousStatsFileSetsTesterPreviousStatsFile(t *testing.T) {
+func TestFromArgsWithURLSetsTesterURL(t *testing.T) {
 	t.Parallel()
 	tester, err := bench.NewTester(
-		bench.WithURL("http://fake.url"),
-		bench.WithPreviousStatsFile("testdata/statsfile.out"),
+		bench.WithStderr(io.Discard),
+		bench.FromArgs([]string{"-r", "10", "http://fake.url"}),
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := "testdata/statsfile.out"
-	if want != tester.PreviousStatsFile {
-		t.Fatalf("want previous stats file %q, got %q", want, tester.PreviousStatsFile)
+	want := "http://fake.url"
+	if want != tester.URL {
+		t.Fatalf("want tester URL %q, got %q", want, tester.URL)
 	}
 }
 
-func TestFromArgsPreviousStatsFileConfiguresPreviousStatsFile(t *testing.T) {
+func TestNewTesterWithoutWithURLReturnsErrorNoURL(t *testing.T) {
 	t.Parallel()
-	args := []string{"-previous-stats-file", "/tmp/statsfile", "http://fake.url"}
-	tester, err := bench.NewTester(
+	_, err := bench.NewTester(
 		bench.WithStderr(io.Discard),
-		bench.FromArgs(args),
 	)
-	if err != nil {
-		t.Fatal(err)
+	if !errors.Is(err, bench.ErrNoURL) {
+		t.Errorf("want ErrNoURL error if no URL set, got %v", err)
 	}
-	want := "/tmp/statsfile"
-	got := tester.PreviousStatsFile
-	if want != got {
-		t.Errorf("want previous state file %q, got %q", want, got)
+}
+
+func TestFromArgsWithoutURLReturnsErrorNoURL(t *testing.T) {
+	t.Parallel()
+	_, err := bench.NewTester(
+		bench.WithStderr(io.Discard),
+		bench.FromArgs([]string{"-r", "10"}),
+	)
+	if !errors.Is(err, bench.ErrNoURL) {
+		t.Errorf("want ErrNoURL error if no URL set, got %v", err)
 	}
 }
 

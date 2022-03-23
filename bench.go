@@ -38,20 +38,19 @@ var (
 )
 
 type Tester struct {
-	Concurrency       int
-	client            *http.Client
-	Graphs            bool
-	OutputPath        string
-	requests          int
-	startAt           time.Time
-	stats             Stats
-	stdout, stderr    io.Writer
-	TimeRecorder      TimeRecorder
-	URL               string
-	userAgent         string
-	wg                *sync.WaitGroup
-	Work              chan struct{}
-	PreviousStatsFile string
+	Concurrency    int
+	client         *http.Client
+	Graphs         bool
+	OutputPath     string
+	requests       int
+	startAt        time.Time
+	stats          Stats
+	stdout, stderr io.Writer
+	TimeRecorder   TimeRecorder
+	URL            string
+	userAgent      string
+	wg             *sync.WaitGroup
+	Work           chan struct{}
 }
 
 func NewTester(opts ...Option) (*Tester, error) {
@@ -92,6 +91,30 @@ func NewTester(opts ...Option) (*Tester, error) {
 	}
 	tester.Work = make(chan struct{})
 	return tester, nil
+}
+
+func FromArgs(args []string) Option {
+	return func(t *Tester) error {
+		fset := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+		fset.SetOutput(t.stderr)
+		reqs := fset.Int("r", 1, "number of requests to be performed in the benchmark")
+		graphs := fset.Bool("g", false, "generate graphs")
+		concurrency := fset.Int("c", 1, "number of concurrent requests (users) to run benchmark")
+		err := fset.Parse(args)
+		if err != nil {
+			return err
+		}
+		args = fset.Args()
+		if len(args) < 1 {
+			fset.Usage()
+			return ErrNoURL
+		}
+		t.URL = args[0]
+		t.requests = *reqs
+		t.Graphs = *graphs
+		t.Concurrency = *concurrency
+		return nil
+	}
 }
 
 func WithRequests(reqs int) Option {
@@ -136,39 +159,6 @@ func WithConcurrency(c int) Option {
 	}
 }
 
-func WithPreviousStatsFile(f string) Option {
-	return func(lg *Tester) error {
-		lg.PreviousStatsFile = f
-		return nil
-	}
-}
-
-func FromArgs(args []string) Option {
-	return func(t *Tester) error {
-		fset := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
-		fset.SetOutput(t.stderr)
-		reqs := fset.Int("r", 1, "number of requests to be performed in the benchmark")
-		graphs := fset.Bool("g", false, "generate graphs")
-		concurrency := fset.Int("c", 1, "number of concurrent requests (users) to run benchmark")
-		prevStatsFile := fset.String("previous-stats-file", "", "previous stats file to be compared with current run")
-		err := fset.Parse(args)
-		if err != nil {
-			return err
-		}
-		args = fset.Args()
-		if len(args) < 1 {
-			fset.Usage()
-			return ErrNoURL
-		}
-		t.URL = args[0]
-		t.requests = *reqs
-		t.Graphs = *graphs
-		t.Concurrency = *concurrency
-		t.PreviousStatsFile = *prevStatsFile
-		return nil
-	}
-}
-
 func WithURL(URL string) Option {
 	return func(t *Tester) error {
 		t.URL = URL
@@ -179,6 +169,13 @@ func WithURL(URL string) Option {
 func WithOutputPath(outputPath string) Option {
 	return func(t *Tester) error {
 		t.OutputPath = outputPath
+		return nil
+	}
+}
+
+func WithGraphs(graphs bool) Option {
+	return func(t *Tester) error {
+		t.Graphs = graphs
 		return nil
 	}
 }
