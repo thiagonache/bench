@@ -40,6 +40,7 @@ var (
 type Tester struct {
 	Concurrency    int
 	client         *http.Client
+	ExportStats    bool
 	Graphs         bool
 	OutputPath     string
 	requests       int
@@ -99,6 +100,7 @@ func FromArgs(args []string) Option {
 		fset.SetOutput(t.stderr)
 		reqs := fset.Int("r", 1, "number of requests to be performed in the benchmark")
 		graphs := fset.Bool("g", false, "generate graphs")
+		exportStats := fset.Bool("s", false, "generate stats file")
 		concurrency := fset.Int("c", 1, "number of concurrent requests (users) to run benchmark")
 		err := fset.Parse(args)
 		if err != nil {
@@ -113,6 +115,7 @@ func FromArgs(args []string) Option {
 		t.requests = *reqs
 		t.Graphs = *graphs
 		t.Concurrency = *concurrency
+		t.ExportStats = *exportStats
 		return nil
 	}
 }
@@ -176,6 +179,13 @@ func WithOutputPath(outputPath string) Option {
 func WithGraphs(graphs bool) Option {
 	return func(t *Tester) error {
 		t.Graphs = graphs
+		return nil
+	}
+}
+
+func WithExportStats(exportStats bool) Option {
+	return func(t *Tester) error {
+		t.ExportStats = exportStats
 		return nil
 	}
 }
@@ -256,6 +266,17 @@ func (t *Tester) Run() error {
 			return err
 		}
 		err = t.Histogram()
+		if err != nil {
+			return err
+		}
+	}
+	if t.ExportStats {
+		file, err := os.Create(fmt.Sprintf("%s/%s", t.OutputPath, "statsfile.txt"))
+		if err != nil {
+			return err
+		}
+		defer file.Close()
+		err = WriteStatsFile(file, t.Stats())
 		if err != nil {
 			return err
 		}
@@ -358,6 +379,7 @@ func (t *Tester) SetMetrics() error {
 			t.stats.Slowest = v
 		}
 	}
+	t.stats.URL = t.URL
 	t.stats.Mean = totalTime / nreq
 	return nil
 }
@@ -406,7 +428,7 @@ func ReadStatsFile(r io.Reader) ([]Stats, error) {
 		pos := strings.Split(scanner.Text(), ",")
 		url := pos[0]
 		mean := pos[1]
-		conv, err := strconv.Atoi(mean)
+		conv, err := strconv.ParseFloat(mean, 3)
 		if err != nil {
 			return nil, err
 		}
@@ -419,4 +441,12 @@ func ReadStatsFile(r io.Reader) ([]Stats, error) {
 		return nil, err
 	}
 	return stats, nil
+}
+
+func WriteStatsFile(w io.Writer, stats Stats) error {
+	_, err := fmt.Fprintf(w, "%s,%.3f", stats.URL, stats.Mean)
+	if err != nil {
+		return err
+	}
+	return nil
 }

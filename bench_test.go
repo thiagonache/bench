@@ -546,7 +546,7 @@ func TestConfiguredGraphsFlagGenerateGraphs(t *testing.T) {
 	filePath = fmt.Sprintf("%s/%s", tester.OutputPath, "histogram.png")
 	_, err = os.Stat(filePath)
 	if err != nil {
-		t.Errorf("want file %q to exist", "histogram.png")
+		t.Errorf("want file %q to exist", filePath)
 	}
 	t.Cleanup(func() {
 		err := os.RemoveAll(tester.OutputPath)
@@ -583,6 +583,134 @@ func TestUnconfiguredGraphsFlagDoesNotGenerateGraphs(t *testing.T) {
 		t.Errorf("want file %q to not exist. Error found: %v", filePath, err)
 	}
 	filePath = fmt.Sprintf("%s/%s", tester.OutputPath, "histogram.png")
+	_, err = os.Stat(filePath)
+	if err == nil {
+		t.Errorf("want file %q to not exist. Error found: %v", filePath, err)
+	}
+	t.Cleanup(func() {
+		err := os.RemoveAll(tester.OutputPath)
+		if err != nil {
+			fmt.Printf("cannot delete %s\n", tester.OutputPath)
+		}
+	})
+}
+
+func TestNewTesterWithStatsSetsExportStatsMode(t *testing.T) {
+	t.Parallel()
+	tester, err := bench.NewTester(
+		bench.WithURL("http://fake.url"),
+		bench.WithStderr(io.Discard),
+		bench.WithExportStats(true),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !tester.ExportStats {
+		t.Error("want ExportStats to be true")
+	}
+}
+
+func TestNewTesterWithNoExportStatsSetsNoExportStatsMode(t *testing.T) {
+	t.Parallel()
+	tester, err := bench.NewTester(
+		bench.WithURL("http://fake.url"),
+		bench.WithStderr(io.Discard),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tester.ExportStats {
+		t.Error("want ExportStats to be false")
+	}
+}
+
+func TestFromArgsExportStatsFlagConfiguresExportStatsMode(t *testing.T) {
+	t.Parallel()
+	args := []string{"-s", "http://fake.url"}
+	tester, err := bench.NewTester(
+		bench.WithStderr(io.Discard),
+		bench.FromArgs(args),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !tester.ExportStats {
+		t.Error("want ExportStats to be true")
+	}
+}
+
+func TestFromArgsNoExportStatsFlagConfiguresNoExportStatsMode(t *testing.T) {
+	t.Parallel()
+	args := []string{"http://fake.url"}
+	tester, err := bench.NewTester(
+		bench.WithStderr(io.Discard),
+		bench.FromArgs(args),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tester.ExportStats {
+		t.Error("want ExportStats to be false")
+	}
+}
+
+func TestConfiguredExportStatsFlagGenerateStatsFile(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewTLSServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(rw, "HelloWorld")
+	}))
+	tempDir := t.TempDir()
+	tester, err := bench.NewTester(
+		bench.WithURL(server.URL),
+		bench.WithHTTPClient(server.Client()),
+		bench.WithStdout(io.Discard),
+		bench.WithStderr(io.Discard),
+		bench.WithOutputPath(tempDir),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tester.ExportStats = true
+	err = tester.Run()
+	if err != nil {
+		t.Fatal(err)
+	}
+	filePath := fmt.Sprintf("%s/%s", tester.OutputPath, "statsfile.txt")
+	_, err = os.Stat(filePath)
+	if err != nil {
+		t.Errorf("want file %q to exist", filePath)
+	}
+
+	t.Cleanup(func() {
+		err := os.RemoveAll(tester.OutputPath)
+		if err != nil {
+			fmt.Printf("cannot delete %s\n", tester.OutputPath)
+		}
+	})
+}
+
+func TestUnconfiguredExportStatsFlagDoesNotGenerateStatsFile(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewTLSServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(rw, "HelloWorld")
+	}))
+	tempDir := t.TempDir()
+	tester, err := bench.NewTester(
+		bench.WithURL(server.URL),
+		bench.WithHTTPClient(server.Client()),
+		bench.WithStdout(io.Discard),
+		bench.WithStderr(io.Discard),
+		bench.WithOutputPath(tempDir),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = tester.Run()
+	if err != nil {
+		t.Fatal(err)
+	}
+	filePath := fmt.Sprintf("%s/%s", tester.OutputPath, "statsfile.txt")
 	_, err = os.Stat(filePath)
 	if err == nil {
 		t.Errorf("want file %q to not exist. Error found: %v", filePath, err)
@@ -647,14 +775,14 @@ func TestFromArgsWithoutURLReturnsErrorNoURL(t *testing.T) {
 
 func TestReadStatsFilePopulatesCorrectStats(t *testing.T) {
 	t.Parallel()
-	statsFileReader := strings.NewReader(`http://fake.url,100`)
+	statsFileReader := strings.NewReader(`http://fake.url,100.123`)
 	got, err := bench.ReadStatsFile(statsFileReader)
 	if err != nil {
 		t.Fatal(err)
 	}
 	want := []bench.Stats{
 		{
-			Mean: 100,
+			Mean: 100.123,
 			URL:  "http://fake.url",
 		},
 	}
@@ -676,6 +804,24 @@ func TestCompareStatsReturnsCorrectStatsDelta(t *testing.T) {
 		Mean:     -15,
 		MeanPerc: -75,
 	}
+	if !cmp.Equal(want, got) {
+		t.Error(cmp.Diff(want, got))
+	}
+}
+
+func TestWriteStatsFilePopulatesCorrectStatsFile(t *testing.T) {
+	t.Parallel()
+	stats := bench.Stats{
+		URL:  "http://fake.url",
+		Mean: 100.123,
+	}
+	output := &bytes.Buffer{}
+	err := bench.WriteStatsFile(output, stats)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `http://fake.url,100.123`
+	got := output.String()
 	if !cmp.Equal(want, got) {
 		t.Error(cmp.Diff(want, got))
 	}
