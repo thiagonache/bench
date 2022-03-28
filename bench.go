@@ -283,7 +283,7 @@ func (t *Tester) Run() error {
 	}
 	t.LogFStdOut("URL: %q benchmark is done\n", t.URL)
 	t.LogFStdOut("Time: %v Requests: %d Success: %d Failures: %d\n", time.Since(t.startAt), t.stats.Requests, t.stats.Successes, t.stats.Failures)
-	t.LogFStdOut("90th percentile: %v 99th percentile: %v\n", t.stats.Perc90, t.stats.Perc99)
+	t.LogFStdOut("90th percentile: %v 99th percentile: %v\n", t.stats.P90, t.stats.P99)
 	t.LogFStdOut("Fastest: %v Mean: %v Slowest: %v\n", t.stats.Fastest, t.stats.Mean, t.stats.Slowest)
 	return nil
 }
@@ -359,10 +359,12 @@ func (t *Tester) SetMetrics() error {
 	sort.Slice(times, func(i, j int) bool {
 		return times[i] < times[j]
 	})
+	perc50Index := int(math.Round(float64(len(times))*0.5)) - 1
+	t.stats.P50 = times[perc50Index]
 	perc90Index := int(math.Round(float64(len(times))*0.9)) - 1
-	t.stats.Perc90 = times[perc90Index]
+	t.stats.P90 = times[perc90Index]
 	perc99Index := int(math.Round(float64(len(times))*0.99)) - 1
-	t.stats.Perc99 = times[perc99Index]
+	t.stats.P99 = times[perc99Index]
 
 	nreq := 0.0
 	totalTime := 0.0
@@ -389,16 +391,19 @@ type Stats struct {
 	Failures  uint64
 	Fastest   float64
 	Mean      float64
-	Perc90    float64
-	Perc99    float64
+	P50       float64
+	P90       float64
+	P99       float64
 	Requests  uint64
 	Slowest   float64
 	Successes uint64
 }
 
 type StatsDelta struct {
-	Mean     float64
-	MeanPerc float64
+	P50, P90, P99 float64
+	P50Perc       float64
+	P90Perc       float64
+	P99Perc       float64
 }
 
 type TimeRecorder struct {
@@ -416,8 +421,12 @@ type Option func(*Tester) error
 
 func CompareStats(stats1, stats2 Stats) StatsDelta {
 	statsDelta := StatsDelta{}
-	statsDelta.Mean = stats2.Mean - stats1.Mean
-	statsDelta.MeanPerc = statsDelta.Mean / stats1.Mean * 100
+	statsDelta.P50 = stats2.P50 - stats1.P50
+	statsDelta.P50Perc = statsDelta.P50 / stats1.P50 * 100
+	statsDelta.P90 = stats2.P90 - stats1.P90
+	statsDelta.P90Perc = statsDelta.P90 / stats1.P90 * 100
+	statsDelta.P99 = stats2.P99 - stats1.P99
+	statsDelta.P99Perc = statsDelta.P99 / stats1.P99 * 100
 	return statsDelta
 }
 
@@ -427,14 +436,26 @@ func ReadStatsFile(r io.Reader) ([]Stats, error) {
 	for scanner.Scan() {
 		pos := strings.Split(scanner.Text(), ",")
 		url := pos[0]
-		mean := pos[1]
-		conv, err := strconv.ParseFloat(mean, 3)
+		dataP50 := pos[1]
+		p50, err := strconv.ParseFloat(dataP50, 3)
+		if err != nil {
+			return nil, err
+		}
+		dataP90 := pos[2]
+		p90, err := strconv.ParseFloat(dataP90, 3)
+		if err != nil {
+			return nil, err
+		}
+		dataP99 := pos[3]
+		p99, err := strconv.ParseFloat(dataP99, 3)
 		if err != nil {
 			return nil, err
 		}
 		stats = append(stats, Stats{
-			Mean: float64(conv),
-			URL:  url,
+			P50: p50,
+			P90: p90,
+			P99: p99,
+			URL: url,
 		})
 	}
 	if err := scanner.Err(); err != nil {
@@ -444,7 +465,7 @@ func ReadStatsFile(r io.Reader) ([]Stats, error) {
 }
 
 func WriteStatsFile(w io.Writer, stats Stats) error {
-	_, err := fmt.Fprintf(w, "%s,%.3f", stats.URL, stats.Mean)
+	_, err := fmt.Fprintf(w, "%s,%.3f,%.3f,%.3f", stats.URL, stats.P50, stats.P90, stats.P99)
 	if err != nil {
 		return err
 	}
