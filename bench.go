@@ -359,12 +359,12 @@ func (t *Tester) SetMetrics() error {
 	sort.Slice(times, func(i, j int) bool {
 		return times[i] < times[j]
 	})
-	perc50Index := int(math.Round(float64(len(times))*0.5)) - 1
-	t.stats.P50 = times[perc50Index]
-	perc90Index := int(math.Round(float64(len(times))*0.9)) - 1
-	t.stats.P90 = times[perc90Index]
-	perc99Index := int(math.Round(float64(len(times))*0.99)) - 1
-	t.stats.P99 = times[perc99Index]
+	p50Idx := int(math.Round(float64(len(times))*0.5)) - 1
+	t.stats.P50 = times[p50Idx]
+	p90Idx := int(math.Round(float64(len(times))*0.9)) - 1
+	t.stats.P90 = times[p90Idx]
+	p99Idx := int(math.Round(float64(len(times))*0.99)) - 1
+	t.stats.P99 = times[p99Idx]
 
 	nreq := 0.0
 	totalTime := 0.0
