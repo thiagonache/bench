@@ -40,6 +40,7 @@ var (
 type Tester struct {
 	Concurrency    int
 	client         *http.Client
+	EndAt          time.Duration
 	ExportStats    bool
 	Graphs         bool
 	OutputPath     string
@@ -60,7 +61,6 @@ func NewTester(opts ...Option) (*Tester, error) {
 		Concurrency: DefaultConcurrency,
 		OutputPath:  DefaultOutputPath,
 		requests:    DefaultNumRequests,
-		startAt:     time.Now(),
 		stats:       Stats{},
 		stderr:      os.Stderr,
 		stdout:      os.Stdout,
@@ -247,6 +247,7 @@ func (t *Tester) Run() error {
 		}
 		close(t.Work)
 	}()
+	t.startAt = time.Now()
 	go func() {
 		for x := 0; x < t.Concurrency; x++ {
 			go func() {
@@ -256,6 +257,7 @@ func (t *Tester) Run() error {
 		}
 	}()
 	t.wg.Wait()
+	t.EndAt = time.Since(t.startAt)
 	err := t.SetMetrics()
 	if err != nil {
 		return err
@@ -281,10 +283,9 @@ func (t *Tester) Run() error {
 			return err
 		}
 	}
-	t.LogFStdOut("URL: %q benchmark is done\n", t.URL)
-	t.LogFStdOut("Time: %v Requests: %d Success: %d Failures: %d\n", time.Since(t.startAt), t.stats.Requests, t.stats.Successes, t.stats.Failures)
-	t.LogFStdOut("90th percentile: %v 99th percentile: %v\n", t.stats.P90, t.stats.P99)
-	t.LogFStdOut("Fastest: %v Mean: %v Slowest: %v\n", t.stats.Fastest, t.stats.Mean, t.stats.Slowest)
+	t.LogFStdOut("The benchmark of %s site took %v\n", t.URL, t.EndAt.Round(time.Millisecond))
+	t.LogFStdOut("Requests: %d Success: %d Failures: %d\n", t.stats.Requests, t.stats.Successes, t.stats.Failures)
+	t.LogFStdOut("P50: %.3fms P90: %.3fms P99: %.3fms\n", t.stats.P50, t.stats.P90, t.stats.P99)
 	return nil
 }
 
@@ -368,18 +369,9 @@ func (t *Tester) SetMetrics() error {
 
 	nreq := 0.0
 	totalTime := 0.0
-	t.stats.Fastest = times[0]
-	t.stats.Slowest = times[0]
 	for _, v := range times {
 		nreq++
 		totalTime += v
-		if v < t.stats.Fastest {
-			t.stats.Fastest = v
-			continue
-		}
-		if v > t.stats.Slowest {
-			t.stats.Slowest = v
-		}
 	}
 	t.stats.URL = t.URL
 	t.stats.Mean = totalTime / nreq
@@ -389,13 +381,11 @@ func (t *Tester) SetMetrics() error {
 type Stats struct {
 	URL       string
 	Failures  uint64
-	Fastest   float64
 	Mean      float64
 	P50       float64
 	P90       float64
 	P99       float64
 	Requests  uint64
-	Slowest   float64
 	Successes uint64
 }
 

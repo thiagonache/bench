@@ -307,9 +307,8 @@ func TestRunReturnsValidStatsAndTime(t *testing.T) {
 	if stats.Requests != stats.Successes+stats.Failures {
 		t.Error("want total requests to be the sum of successes + failures")
 	}
-	duration := time.Since(tester.StartTime())
-	if duration > time.Second {
-		t.Fatalf("weirdly long test duration %s", duration)
+	if tester.EndAt.Milliseconds() == 0 {
+		t.Fatal("zero milliseconds is an invalid time")
 	}
 }
 
@@ -334,12 +333,6 @@ func TestTimeRecorderCalledMultipleTimesSetCorrectStatsAndReturnsNoError(t *test
 	stats := tester.Stats()
 	if stats.Mean != 100 {
 		t.Errorf("want 100ms mean time, got %v", stats.Mean)
-	}
-	if stats.Slowest != 200 {
-		t.Errorf("want slowest request time of 200ms, got %v", stats.Slowest)
-	}
-	if stats.Fastest != 50 {
-		t.Errorf("want fastest request time of 50ms, got %v", stats.Fastest)
 	}
 }
 
