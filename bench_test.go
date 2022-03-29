@@ -769,6 +769,28 @@ func TestFromArgsWithoutURLReturnsErrorNoURL(t *testing.T) {
 	}
 }
 
+func TestNewTesterWithNilStdoutReturnsErrorValueCannotBeNil(t *testing.T) {
+	t.Parallel()
+	_, err := bench.NewTester(
+		bench.WithURL("http://fake.url"),
+		bench.WithStdout(nil),
+	)
+	if !errors.Is(err, bench.ErrValueCannotBeNil) {
+		t.Errorf("want ErrValueCannotBeNil error if stdout is nil, got %v", err)
+	}
+}
+
+func TestNewTesterWithNilStderrReturnsErrorValueCannotBeNil(t *testing.T) {
+	t.Parallel()
+	_, err := bench.NewTester(
+		bench.WithURL("http://fake.url"),
+		bench.WithStderr(nil),
+	)
+	if !errors.Is(err, bench.ErrValueCannotBeNil) {
+		t.Errorf("want ErrValueCannotBeNil error if stderr is nil, got %v", err)
+	}
+}
+
 func TestReadStatsFilePopulatesCorrectStats(t *testing.T) {
 	t.Parallel()
 	statsFileReader := strings.NewReader(`http://fake.url,100.123,150.000,198.465`)

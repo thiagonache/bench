@@ -33,8 +33,9 @@ var (
 	DefaultHTTPClient = &http.Client{
 		Timeout: 5 * time.Second,
 	}
-	ErrNoURL           = errors.New("no URL to test")
-	ErrTimeNotRecorded = errors.New("no execution time recorded")
+	ErrNoURL            = errors.New("no URL to test")
+	ErrTimeNotRecorded  = errors.New("no execution time recorded")
+	ErrValueCannotBeNil = errors.New("value cannot be nil")
 )
 
 type Tester struct {
@@ -143,6 +144,9 @@ func WithHTTPClient(client *http.Client) Option {
 
 func WithStdout(w io.Writer) Option {
 	return func(t *Tester) error {
+		if w == nil {
+			return ErrValueCannotBeNil
+		}
 		t.stdout = w
 		return nil
 	}
@@ -150,6 +154,9 @@ func WithStdout(w io.Writer) Option {
 
 func WithStderr(w io.Writer) Option {
 	return func(lg *Tester) error {
+		if w == nil {
+			return ErrValueCannotBeNil
+		}
 		lg.stderr = w
 		return nil
 	}
