@@ -793,17 +793,20 @@ func TestNewTesterWithNilStderrReturnsErrorValueCannotBeNil(t *testing.T) {
 
 func TestReadStatsFilePopulatesCorrectStats(t *testing.T) {
 	t.Parallel()
-	statsFileReader := strings.NewReader(`http://fake.url,100.123,150.000,198.465`)
+	statsFileReader := strings.NewReader(`http://fake.url,20,19,1,100.123,150.000,198.465`)
 	got, err := bench.ReadStatsFile(statsFileReader)
 	if err != nil {
 		t.Fatal(err)
 	}
 	want := []bench.Stats{
 		{
-			URL: "http://fake.url",
-			P50: 100.123,
-			P90: 150.000,
-			P99: 198.465,
+			Failures:  1,
+			P50:       100.123,
+			P90:       150.000,
+			P99:       198.465,
+			Requests:  20,
+			Successes: 19,
+			URL:       "http://fake.url",
 		},
 	}
 	if !cmp.Equal(want, got) {
@@ -814,23 +817,35 @@ func TestReadStatsFilePopulatesCorrectStats(t *testing.T) {
 func TestCompareStatsReturnsCorrectStatsDelta(t *testing.T) {
 	t.Parallel()
 	stats1 := bench.Stats{
-		P50: 20,
-		P90: 30,
-		P99: 100,
+		Failures:  2,
+		P50:       20,
+		P90:       30,
+		P99:       100,
+		Requests:  20,
+		Successes: 18,
 	}
 	stats2 := bench.Stats{
-		P50: 5,
-		P90: 33,
-		P99: 99,
+		Failures:  1,
+		P50:       5,
+		P90:       33,
+		P99:       99,
+		Requests:  40,
+		Successes: 19,
 	}
 	got := bench.CompareStats(stats1, stats2)
 	want := bench.StatsDelta{
-		P50:     -15,
-		P50Perc: -75,
-		P90:     3,
-		P90Perc: 10,
-		P99:     -1,
-		P99Perc: -1,
+		Failures:      -1,
+		FailuresPerc:  -50,
+		P50:           -15,
+		P50Perc:       -75,
+		P90:           3,
+		P90Perc:       10,
+		P99:           -1,
+		P99Perc:       -1,
+		Requests:      20,
+		RequestsPerc:  100,
+		Successes:     1,
+		SuccessesPerc: 5.555555555555555,
 	}
 	if !cmp.Equal(want, got) {
 		t.Error(cmp.Diff(want, got))
@@ -840,17 +855,20 @@ func TestCompareStatsReturnsCorrectStatsDelta(t *testing.T) {
 func TestWriteStatsFilePopulatesCorrectStatsFile(t *testing.T) {
 	t.Parallel()
 	stats := bench.Stats{
-		URL: "http://fake.url",
-		P50: 100.123,
-		P90: 150.000,
-		P99: 198.465,
+		Failures:  2,
+		P50:       100.123,
+		P90:       150.000,
+		P99:       198.465,
+		Requests:  20,
+		Successes: 18,
+		URL:       "http://fake.url",
 	}
 	output := &bytes.Buffer{}
 	err := bench.WriteStatsFile(output, stats)
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := `http://fake.url,100.123,150.000,198.465`
+	want := `http://fake.url,20,18,2,100.123,150.000,198.465`
 	got := output.String()
 	if !cmp.Equal(want, got) {
 		t.Error(cmp.Diff(want, got))

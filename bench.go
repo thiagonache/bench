@@ -397,10 +397,18 @@ type Stats struct {
 }
 
 type StatsDelta struct {
-	P50, P90, P99 float64
+	Failures      float64
+	FailuresPerc  float64
+	P50           float64
 	P50Perc       float64
+	P90           float64
 	P90Perc       float64
+	P99           float64
 	P99Perc       float64
+	Requests      float64
+	RequestsPerc  float64
+	Successes     float64
+	SuccessesPerc float64
 }
 
 type TimeRecorder struct {
@@ -424,6 +432,12 @@ func CompareStats(stats1, stats2 Stats) StatsDelta {
 	statsDelta.P90Perc = statsDelta.P90 / stats1.P90 * 100
 	statsDelta.P99 = stats2.P99 - stats1.P99
 	statsDelta.P99Perc = statsDelta.P99 / stats1.P99 * 100
+	statsDelta.Requests = float64(stats2.Requests) - float64(stats1.Requests)
+	statsDelta.RequestsPerc = statsDelta.Requests / float64(stats1.Requests) * 100
+	statsDelta.Successes = float64(stats2.Successes) - float64(stats1.Successes)
+	statsDelta.SuccessesPerc = statsDelta.Successes / float64(stats1.Successes) * 100
+	statsDelta.Failures = float64(stats2.Failures) - float64(stats1.Failures)
+	statsDelta.FailuresPerc = statsDelta.Failures / float64(stats1.Failures) * 100
 	return statsDelta
 }
 
@@ -433,26 +447,44 @@ func ReadStatsFile(r io.Reader) ([]Stats, error) {
 	for scanner.Scan() {
 		pos := strings.Split(scanner.Text(), ",")
 		url := pos[0]
-		dataP50 := pos[1]
-		p50, err := strconv.ParseFloat(dataP50, 3)
+		dataRequests := pos[1]
+		requests, err := strconv.ParseUint(dataRequests, 10, 64)
 		if err != nil {
 			return nil, err
 		}
-		dataP90 := pos[2]
-		p90, err := strconv.ParseFloat(dataP90, 3)
+		dataSuccesses := pos[2]
+		successes, err := strconv.ParseUint(dataSuccesses, 10, 64)
 		if err != nil {
 			return nil, err
 		}
-		dataP99 := pos[3]
-		p99, err := strconv.ParseFloat(dataP99, 3)
+		dataFailures := pos[3]
+		failures, err := strconv.ParseUint(dataFailures, 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		dataP50 := pos[4]
+		p50, err := strconv.ParseFloat(dataP50, 64)
+		if err != nil {
+			return nil, err
+		}
+		dataP90 := pos[5]
+		p90, err := strconv.ParseFloat(dataP90, 64)
+		if err != nil {
+			return nil, err
+		}
+		dataP99 := pos[6]
+		p99, err := strconv.ParseFloat(dataP99, 64)
 		if err != nil {
 			return nil, err
 		}
 		stats = append(stats, Stats{
-			P50: p50,
-			P90: p90,
-			P99: p99,
-			URL: url,
+			Failures:  failures,
+			P50:       p50,
+			P90:       p90,
+			P99:       p99,
+			Requests:  requests,
+			Successes: successes,
+			URL:       url,
 		})
 	}
 	if err := scanner.Err(); err != nil {
@@ -462,7 +494,9 @@ func ReadStatsFile(r io.Reader) ([]Stats, error) {
 }
 
 func WriteStatsFile(w io.Writer, stats Stats) error {
-	_, err := fmt.Fprintf(w, "%s,%.3f,%.3f,%.3f", stats.URL, stats.P50, stats.P90, stats.P99)
+	_, err := fmt.Fprintf(w, "%s,%d,%d,%d,%.3f,%.3f,%.3f",
+		stats.URL, stats.Requests, stats.Successes, stats.Failures, stats.P50, stats.P90, stats.P99,
+	)
 	if err != nil {
 		return err
 	}
