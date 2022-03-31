@@ -620,7 +620,7 @@ func TestNewTesterWithNoExportStatsSetsNoExportStatsMode(t *testing.T) {
 	}
 }
 
-func TestFromArgsExportStatsFlagConfiguresExportStatsMode(t *testing.T) {
+func TestFromArgs_WithSFlagEnablesExportStatsMode(t *testing.T) {
 	t.Parallel()
 	args := []string{"run", "-s", "-u", "http://fake.url"}
 	tester, err := bench.NewTester(
@@ -635,7 +635,7 @@ func TestFromArgsExportStatsFlagConfiguresExportStatsMode(t *testing.T) {
 	}
 }
 
-func TestFromArgsNoExportStatsFlagConfiguresNoExportStatsMode(t *testing.T) {
+func TestFromArgs_WithoutSFlagDisablesExportStatsMode(t *testing.T) {
 	t.Parallel()
 	args := []string{"run", "-u", "http://fake.url"}
 	tester, err := bench.NewTester(
@@ -758,6 +758,17 @@ func TestNewTesterWithoutWithURLReturnsErrorNoURL(t *testing.T) {
 	}
 }
 
+func TestFromArgs_GivenNoArgsReturnsUsageMessage(t *testing.T) {
+	t.Parallel()
+	_, err := bench.NewTester(
+		bench.WithStderr(io.Discard),
+		bench.FromArgs([]string{}),
+	)
+	if !errors.Is(err, bench.ErrNoArgs) {
+		t.Errorf("want ErrNoArgs error if no args supplied, got %v", err)
+	}
+}
+
 func TestFromArgsWithoutURLReturnsErrorNoURL(t *testing.T) {
 	t.Parallel()
 	_, err := bench.NewTester(
@@ -788,6 +799,69 @@ func TestNewTesterWithNilStderrReturnsErrorValueCannotBeNil(t *testing.T) {
 	)
 	if !errors.Is(err, bench.ErrValueCannotBeNil) {
 		t.Errorf("want ErrValueCannotBeNil error if stderr is nil, got %v", err)
+	}
+}
+
+func TestCompareStatsFiles_ReadsTwoFilesAndComparesThem(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	f1 := dir + "/stats1.txt"
+	stats1 := bench.Stats{
+		Failures:  2,
+		P50:       20,
+		P90:       30,
+		P99:       100,
+		Requests:  20,
+		Successes: 18,
+	}
+	f, err := os.Create(f1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = bench.WriteStatsFile(f, stats1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+	stats2 := bench.Stats{
+		Failures:  1,
+		P50:       5,
+		P90:       33,
+		P99:       99,
+		Requests:  40,
+		Successes: 19,
+	}
+	f2 := dir + "/stats2.txt"
+	f, err = os.Create(f2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = bench.WriteStatsFile(f, stats2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+	got, err := bench.CompareStatsFiles(f1, f2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := bench.StatsDelta{
+		Failures:  -1,
+		P50:       -15,
+		P90:       3,
+		P99:       -1,
+		Requests:  20,
+		Successes: 1,
+	}
+	if !cmp.Equal(want, got) {
+		t.Error(cmp.Diff(want, got))
+	}
+}
+
+func TestCompareStatsFiles_ErrorsIfOneOrBothFilesUnreadable(t *testing.T) {
+	_, err := bench.CompareStatsFiles("bogus", "even more bogus")
+	if err == nil {
+		t.Error("no error")
 	}
 }
 
@@ -834,18 +908,12 @@ func TestCompareStatsReturnsCorrectStatsDelta(t *testing.T) {
 	}
 	got := bench.CompareStats(stats1, stats2)
 	want := bench.StatsDelta{
-		Failures:      -1,
-		FailuresPerc:  -50,
-		P50:           -15,
-		P50Perc:       -75,
-		P90:           3,
-		P90Perc:       10,
-		P99:           -1,
-		P99Perc:       -1,
-		Requests:      20,
-		RequestsPerc:  100,
-		Successes:     1,
-		SuccessesPerc: 5.555555555555555,
+		Failures:  -1,
+		P50:       -15,
+		P90:       3,
+		P99:       -1,
+		Requests:  20,
+		Successes: 1,
 	}
 	if !cmp.Equal(want, got) {
 		t.Error(cmp.Diff(want, got))

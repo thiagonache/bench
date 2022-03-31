@@ -14,7 +14,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"gonum.org/v1/plot"
@@ -33,6 +32,7 @@ var (
 	DefaultHTTPClient = &http.Client{
 		Timeout: 5 * time.Second,
 	}
+	ErrNoArgs           = errors.New("no arguments")
 	ErrNoURL            = errors.New("no URL to test")
 	ErrTimeNotRecorded  = errors.New("no execution time recorded")
 	ErrValueCannotBeNil = errors.New("value cannot be nil")
@@ -47,13 +47,15 @@ type Tester struct {
 	OutputPath     string
 	requests       int
 	startAt        time.Time
-	stats          Stats
 	stdout, stderr io.Writer
-	TimeRecorder   TimeRecorder
 	URL            string
 	userAgent      string
 	wg             *sync.WaitGroup
 	Work           chan struct{}
+
+	mu           *sync.Mutex
+	stats        Stats
+	TimeRecorder TimeRecorder
 }
 
 func NewTester(opts ...Option) (*Tester, error) {
@@ -67,10 +69,11 @@ func NewTester(opts ...Option) (*Tester, error) {
 		stdout:      os.Stdout,
 		TimeRecorder: TimeRecorder{
 			ExecutionsTime: []float64{},
-			MU:             &sync.Mutex{},
+			mu:             &sync.Mutex{},
 		},
 		userAgent: DefaultUserAgent,
 		wg:        &sync.WaitGroup{},
+		mu:        &sync.Mutex{},
 	}
 	for _, o := range opts {
 		err := o(tester)
@@ -97,16 +100,20 @@ func NewTester(opts ...Option) (*Tester, error) {
 
 func FromArgs(args []string) Option {
 	return func(t *Tester) error {
-		runCmd := flag.NewFlagSet("run", flag.ContinueOnError)
-		runCmd.SetOutput(t.stderr)
-		reqs := runCmd.Int("r", 1, "number of requests to be performed in the benchmark")
-		graphs := runCmd.Bool("g", false, "generate graphs")
-		exportStats := runCmd.Bool("s", false, "generate stats file")
-		concurrency := runCmd.Int("c", 1, "number of concurrent requests (users) to run benchmark")
-		url := runCmd.String("u", "", "url to run benchmark")
+		fs := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+		fs.SetOutput(t.stderr)
+		reqs := fs.Int("r", 1, "number of requests to be performed in the benchmark")
+		graphs := fs.Bool("g", false, "generate graphs")
+		exportStats := fs.Bool("s", false, "generate stats file")
+		concurrency := fs.Int("c", 1, "number of concurrent requests (users) to run benchmark")
+		url := fs.String("u", "", "url to run benchmark")
+		if len(args) < 1 {
+			fs.Usage()
+			return ErrNoArgs
+		}
 		switch args[0] {
 		case "run":
-			runCmd.Parse(args[1:])
+			fs.Parse(args[1:])
 			t.URL = *url
 			t.requests = *reqs
 			t.Graphs = *graphs
@@ -330,15 +337,21 @@ func (t Tester) Histogram() error {
 }
 
 func (t *Tester) RecordRequest() {
-	atomic.AddUint64(&t.stats.Requests, 1)
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.stats.Requests++
 }
 
 func (t *Tester) RecordSuccess() {
-	atomic.AddUint64(&t.stats.Successes, 1)
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.stats.Successes++
 }
 
 func (t *Tester) RecordFailure() {
-	atomic.AddUint64(&t.stats.Failures, 1)
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.stats.Failures++
 }
 
 func (t Tester) LogStdOut(msg string) {
@@ -385,58 +398,62 @@ func (t *Tester) SetMetrics() error {
 
 type Stats struct {
 	URL       string
-	Failures  uint64
 	Mean      float64
 	P50       float64
 	P90       float64
 	P99       float64
-	Requests  uint64
-	Successes uint64
+	Failures  int
+	Requests  int
+	Successes int
 }
 
 type StatsDelta struct {
-	Failures      float64
-	FailuresPerc  float64
-	P50           float64
-	P50Perc       float64
-	P90           float64
-	P90Perc       float64
-	P99           float64
-	P99Perc       float64
-	Requests      float64
-	RequestsPerc  float64
-	Successes     float64
-	SuccessesPerc float64
+	P50       float64
+	P90       float64
+	P99       float64
+	Requests  int
+	Failures  int
+	Successes int
 }
 
 type TimeRecorder struct {
+	mu             *sync.Mutex
 	ExecutionsTime []float64
-	MU             *sync.Mutex
 }
 
 func (t *TimeRecorder) RecordTime(executionTime float64) {
-	t.MU.Lock()
-	defer t.MU.Unlock()
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	t.ExecutionsTime = append(t.ExecutionsTime, executionTime)
 }
 
 type Option func(*Tester) error
 
 func CompareStats(stats1, stats2 Stats) StatsDelta {
-	statsDelta := StatsDelta{}
-	statsDelta.P50 = stats2.P50 - stats1.P50
-	statsDelta.P50Perc = statsDelta.P50 / stats1.P50 * 100
-	statsDelta.P90 = stats2.P90 - stats1.P90
-	statsDelta.P90Perc = statsDelta.P90 / stats1.P90 * 100
-	statsDelta.P99 = stats2.P99 - stats1.P99
-	statsDelta.P99Perc = statsDelta.P99 / stats1.P99 * 100
-	statsDelta.Requests = float64(stats2.Requests) - float64(stats1.Requests)
-	statsDelta.RequestsPerc = statsDelta.Requests / float64(stats1.Requests) * 100
-	statsDelta.Successes = float64(stats2.Successes) - float64(stats1.Successes)
-	statsDelta.SuccessesPerc = statsDelta.Successes / float64(stats1.Successes) * 100
-	statsDelta.Failures = float64(stats2.Failures) - float64(stats1.Failures)
-	statsDelta.FailuresPerc = statsDelta.Failures / float64(stats1.Failures) * 100
+	statsDelta := StatsDelta{
+		P50:       stats2.P50 - stats1.P50,
+		P90:       stats2.P90 - stats1.P90,
+		P99:       stats2.P99 - stats1.P99,
+		Requests:  stats2.Requests - stats1.Requests,
+		Successes: stats2.Successes - stats1.Successes,
+		Failures:  stats2.Failures - stats1.Failures,
+	}
 	return statsDelta
+}
+
+func CompareStatsFiles(path1, path2 string) (StatsDelta, error) {
+	f1, err := os.Open(path1)
+	if err != nil {
+		return StatsDelta{}, err
+	}
+	defer f1.Close()
+	ReadStatsFile(f1)
+	f2, err := os.Open(path1)
+	if err != nil {
+		return StatsDelta{}, err
+	}
+	defer f2.Close()
+	return StatsDelta{}, nil
 }
 
 func ReadStatsFile(r io.Reader) ([]Stats, error) {
@@ -446,17 +463,17 @@ func ReadStatsFile(r io.Reader) ([]Stats, error) {
 		pos := strings.Split(scanner.Text(), ",")
 		url := pos[0]
 		dataRequests := pos[1]
-		requests, err := strconv.ParseUint(dataRequests, 10, 64)
+		requests, err := strconv.Atoi(dataRequests)
 		if err != nil {
 			return nil, err
 		}
 		dataSuccesses := pos[2]
-		successes, err := strconv.ParseUint(dataSuccesses, 10, 64)
+		successes, err := strconv.Atoi(dataSuccesses)
 		if err != nil {
 			return nil, err
 		}
 		dataFailures := pos[3]
-		failures, err := strconv.ParseUint(dataFailures, 10, 64)
+		failures, err := strconv.Atoi(dataFailures)
 		if err != nil {
 			return nil, err
 		}
