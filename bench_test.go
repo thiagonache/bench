@@ -124,7 +124,7 @@ func TestNewTesterWithNConcurrentRequestsIsConfiguredForNConcurrentRequests(t *t
 
 func TestFromArgsNConcurrencyConfiguresNConcurrency(t *testing.T) {
 	t.Parallel()
-	args := []string{"-c", "10", "http://fake.url"}
+	args := []string{"run", "-c", "10", "-u", "http://fake.url"}
 	tester, err := bench.NewTester(
 		bench.WithStderr(io.Discard),
 		bench.FromArgs(args),
@@ -439,7 +439,7 @@ func TestLogfPrintsToStdoutAndStderr(t *testing.T) {
 
 func TestFromArgsNRequestsConfiguresNRequests(t *testing.T) {
 	t.Parallel()
-	args := []string{"-r", "10", "http://fake.url"}
+	args := []string{"run", "-r", "10", "-u", "http://fake.url"}
 	tester, err := bench.NewTester(
 		bench.WithStderr(io.Discard),
 		bench.FromArgs(args),
@@ -485,7 +485,7 @@ func TestNewTesterWithNoGraphsSetsNoGraphsMode(t *testing.T) {
 
 func TestFromArgsGraphsFlagConfiguresGraphsMode(t *testing.T) {
 	t.Parallel()
-	args := []string{"-g", "http://fake.url"}
+	args := []string{"run", "-g", "-u", "http://fake.url"}
 	tester, err := bench.NewTester(
 		bench.WithStderr(io.Discard),
 		bench.FromArgs(args),
@@ -500,7 +500,7 @@ func TestFromArgsGraphsFlagConfiguresGraphsMode(t *testing.T) {
 
 func TestFromArgsNoGraphsFlagConfiguresNoGraphsMode(t *testing.T) {
 	t.Parallel()
-	args := []string{"http://fake.url"}
+	args := []string{"run", "-u", "http://fake.url"}
 	tester, err := bench.NewTester(
 		bench.WithStderr(io.Discard),
 		bench.FromArgs(args),
@@ -622,7 +622,7 @@ func TestNewTesterWithNoExportStatsSetsNoExportStatsMode(t *testing.T) {
 
 func TestFromArgsExportStatsFlagConfiguresExportStatsMode(t *testing.T) {
 	t.Parallel()
-	args := []string{"-s", "http://fake.url"}
+	args := []string{"run", "-s", "-u", "http://fake.url"}
 	tester, err := bench.NewTester(
 		bench.WithStderr(io.Discard),
 		bench.FromArgs(args),
@@ -637,7 +637,7 @@ func TestFromArgsExportStatsFlagConfiguresExportStatsMode(t *testing.T) {
 
 func TestFromArgsNoExportStatsFlagConfiguresNoExportStatsMode(t *testing.T) {
 	t.Parallel()
-	args := []string{"http://fake.url"}
+	args := []string{"run", "-u", "http://fake.url"}
 	tester, err := bench.NewTester(
 		bench.WithStderr(io.Discard),
 		bench.FromArgs(args),
@@ -737,7 +737,7 @@ func TestFromArgsWithURLSetsTesterURL(t *testing.T) {
 	t.Parallel()
 	tester, err := bench.NewTester(
 		bench.WithStderr(io.Discard),
-		bench.FromArgs([]string{"-r", "10", "http://fake.url"}),
+		bench.FromArgs([]string{"run", "-r", "10", "-u", "http://fake.url"}),
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -762,7 +762,7 @@ func TestFromArgsWithoutURLReturnsErrorNoURL(t *testing.T) {
 	t.Parallel()
 	_, err := bench.NewTester(
 		bench.WithStderr(io.Discard),
-		bench.FromArgs([]string{"-r", "10"}),
+		bench.FromArgs([]string{"run", "-r", "10"}),
 	)
 	if !errors.Is(err, bench.ErrNoURL) {
 		t.Errorf("want ErrNoURL error if no URL set, got %v", err)

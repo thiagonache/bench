@@ -97,26 +97,24 @@ func NewTester(opts ...Option) (*Tester, error) {
 
 func FromArgs(args []string) Option {
 	return func(t *Tester) error {
-		fset := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
-		fset.SetOutput(t.stderr)
-		reqs := fset.Int("r", 1, "number of requests to be performed in the benchmark")
-		graphs := fset.Bool("g", false, "generate graphs")
-		exportStats := fset.Bool("s", false, "generate stats file")
-		concurrency := fset.Int("c", 1, "number of concurrent requests (users) to run benchmark")
-		err := fset.Parse(args)
-		if err != nil {
-			return err
+		runCmd := flag.NewFlagSet("run", flag.ContinueOnError)
+		runCmd.SetOutput(t.stderr)
+		reqs := runCmd.Int("r", 1, "number of requests to be performed in the benchmark")
+		graphs := runCmd.Bool("g", false, "generate graphs")
+		exportStats := runCmd.Bool("s", false, "generate stats file")
+		concurrency := runCmd.Int("c", 1, "number of concurrent requests (users) to run benchmark")
+		url := runCmd.String("u", "", "url to run benchmark")
+		switch args[0] {
+		case "run":
+			runCmd.Parse(args[1:])
+			t.URL = *url
+			t.requests = *reqs
+			t.Graphs = *graphs
+			t.Concurrency = *concurrency
+			t.ExportStats = *exportStats
+		default:
+			return errors.New("expected run or cmp subcommands")
 		}
-		args = fset.Args()
-		if len(args) < 1 {
-			fset.Usage()
-			return ErrNoURL
-		}
-		t.URL = args[0]
-		t.requests = *reqs
-		t.Graphs = *graphs
-		t.Concurrency = *concurrency
-		t.ExportStats = *exportStats
 		return nil
 	}
 }
