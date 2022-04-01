@@ -819,7 +819,7 @@ func TestCompareStatsFiles_ReadsTwoFilesAndComparesThem(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = bench.WriteStatsFile(file1, stats1)
+	err = bench.WriteStats(file1, stats1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -838,7 +838,7 @@ func TestCompareStatsFiles_ReadsTwoFilesAndComparesThem(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = bench.WriteStatsFile(file2, stats2)
+	err = bench.WriteStats(file2, stats2)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -867,24 +867,23 @@ func TestCompareStatsFiles_ErrorsIfOneOrBothFilesUnreadable(t *testing.T) {
 	}
 }
 
-func TestReadStatsFilePopulatesCorrectStats(t *testing.T) {
+func TestReadStatsPopulatesCorrectStats(t *testing.T) {
 	t.Parallel()
-	statsFileReader := strings.NewReader(`http://fake.url,20,19,1,100.123,150.000,198.465`)
-	got, err := bench.ReadStatsFile(statsFileReader)
+	statsReader := strings.NewReader(`http://fake.url,20,19,1,100.123,150.000,198.465`)
+	got, err := bench.ReadStats(statsReader)
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []bench.Stats{
-		{
-			Failures:  1,
-			P50:       100.123,
-			P90:       150.000,
-			P99:       198.465,
-			Requests:  20,
-			Successes: 19,
-			URL:       "http://fake.url",
-		},
+	want := bench.Stats{
+		Failures:  1,
+		P50:       100.123,
+		P90:       150.000,
+		P99:       198.465,
+		Requests:  20,
+		Successes: 19,
+		URL:       "http://fake.url",
 	}
+
 	if !cmp.Equal(want, got) {
 		t.Error(cmp.Diff(want, got))
 	}
@@ -922,7 +921,7 @@ func TestCompareStatsReturnsCorrectStatsDelta(t *testing.T) {
 	}
 }
 
-func TestWriteStatsFilePopulatesCorrectStatsFile(t *testing.T) {
+func TestWriteStatsPopulatesCorrectStats(t *testing.T) {
 	t.Parallel()
 	stats := bench.Stats{
 		Failures:  2,
@@ -934,7 +933,7 @@ func TestWriteStatsFilePopulatesCorrectStatsFile(t *testing.T) {
 		URL:       "http://fake.url",
 	}
 	output := &bytes.Buffer{}
-	err := bench.WriteStatsFile(output, stats)
+	err := bench.WriteStats(output, stats)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -290,7 +290,7 @@ func (t *Tester) Run() error {
 			return err
 		}
 		defer file.Close()
-		err = WriteStatsFile(file, t.Stats())
+		err = WriteStats(file, t.Stats())
 		if err != nil {
 			return err
 		}
@@ -447,7 +447,7 @@ func CompareStatsFiles(path1, path2 string) (StatsDelta, error) {
 		return StatsDelta{}, err
 	}
 	defer f1.Close()
-	s1, err := ReadStatsFile(f1)
+	s1, err := ReadStats(f1)
 	if err != nil {
 		return StatsDelta{}, err
 	}
@@ -456,50 +456,50 @@ func CompareStatsFiles(path1, path2 string) (StatsDelta, error) {
 		return StatsDelta{}, err
 	}
 	defer f2.Close()
-	s2, err := ReadStatsFile(f2)
+	s2, err := ReadStats(f2)
 	if err != nil {
 		return StatsDelta{}, err
 	}
-	return CompareStats(s1[0], s2[0]), nil
+	return CompareStats(s1, s2), nil
 }
 
-func ReadStatsFile(r io.Reader) ([]Stats, error) {
+func ReadStats(r io.Reader) (Stats, error) {
 	scanner := bufio.NewScanner(r)
-	stats := []Stats{}
+	stats := Stats{}
 	for scanner.Scan() {
 		pos := strings.Split(scanner.Text(), ",")
 		url := pos[0]
 		dataRequests := pos[1]
 		requests, err := strconv.Atoi(dataRequests)
 		if err != nil {
-			return nil, err
+			return Stats{}, err
 		}
 		dataSuccesses := pos[2]
 		successes, err := strconv.Atoi(dataSuccesses)
 		if err != nil {
-			return nil, err
+			return Stats{}, err
 		}
 		dataFailures := pos[3]
 		failures, err := strconv.Atoi(dataFailures)
 		if err != nil {
-			return nil, err
+			return Stats{}, err
 		}
 		dataP50 := pos[4]
 		p50, err := strconv.ParseFloat(dataP50, 64)
 		if err != nil {
-			return nil, err
+			return Stats{}, err
 		}
 		dataP90 := pos[5]
 		p90, err := strconv.ParseFloat(dataP90, 64)
 		if err != nil {
-			return nil, err
+			return Stats{}, err
 		}
 		dataP99 := pos[6]
 		p99, err := strconv.ParseFloat(dataP99, 64)
 		if err != nil {
-			return nil, err
+			return Stats{}, err
 		}
-		stats = append(stats, Stats{
+		stats = Stats{
 			Failures:  failures,
 			P50:       p50,
 			P90:       p90,
@@ -507,15 +507,15 @@ func ReadStatsFile(r io.Reader) ([]Stats, error) {
 			Requests:  requests,
 			Successes: successes,
 			URL:       url,
-		})
+		}
 	}
 	if err := scanner.Err(); err != nil {
-		return nil, err
+		return Stats{}, err
 	}
 	return stats, nil
 }
 
-func WriteStatsFile(w io.Writer, stats Stats) error {
+func WriteStats(w io.Writer, stats Stats) error {
 	_, err := fmt.Fprintf(w, "%s,%d,%d,%d,%.3f,%.3f,%.3f",
 		stats.URL, stats.Requests, stats.Successes, stats.Failures, stats.P50, stats.P90, stats.P99,
 	)
