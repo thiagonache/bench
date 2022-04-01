@@ -858,6 +858,13 @@ func TestCompareStatsFiles_ReadsTwoFilesAndComparesThem(t *testing.T) {
 	if !cmp.Equal(want, got) {
 		t.Error(cmp.Diff(want, got))
 	}
+
+	t.Cleanup(func() {
+		err := os.RemoveAll(dir)
+		if err != nil {
+			fmt.Printf("cannot delete %s\n", dir)
+		}
+	})
 }
 
 func TestCompareStatsFiles_ErrorsIfOneOrBothFilesUnreadable(t *testing.T) {
