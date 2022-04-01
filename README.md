@@ -1,3 +1,3 @@
 # simplebench
 
-HTTP Load Test Generator based on Apache Benchmark.
+Moved to <a href="https://github.com/thiagonache/bench">bench repository</a>
