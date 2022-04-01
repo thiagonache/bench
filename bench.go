@@ -447,13 +447,20 @@ func CompareStatsFiles(path1, path2 string) (StatsDelta, error) {
 		return StatsDelta{}, err
 	}
 	defer f1.Close()
-	ReadStatsFile(f1)
-	f2, err := os.Open(path1)
+	s1, err := ReadStatsFile(f1)
+	if err != nil {
+		return StatsDelta{}, err
+	}
+	f2, err := os.Open(path2)
 	if err != nil {
 		return StatsDelta{}, err
 	}
 	defer f2.Close()
-	return StatsDelta{}, nil
+	s2, err := ReadStatsFile(f2)
+	if err != nil {
+		return StatsDelta{}, err
+	}
+	return CompareStats(s1[0], s2[0]), nil
 }
 
 func ReadStatsFile(r io.Reader) ([]Stats, error) {

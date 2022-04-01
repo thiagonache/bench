@@ -805,7 +805,7 @@ func TestNewTesterWithNilStderrReturnsErrorValueCannotBeNil(t *testing.T) {
 func TestCompareStatsFiles_ReadsTwoFilesAndComparesThem(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	f1 := dir + "/stats1.txt"
+
 	stats1 := bench.Stats{
 		Failures:  2,
 		P50:       20,
@@ -814,15 +814,17 @@ func TestCompareStatsFiles_ReadsTwoFilesAndComparesThem(t *testing.T) {
 		Requests:  20,
 		Successes: 18,
 	}
-	f, err := os.Create(f1)
+	f1 := dir + "/stats1.txt"
+	file1, err := os.Create(f1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = bench.WriteStatsFile(f, stats1)
+	err = bench.WriteStatsFile(file1, stats1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	f.Close()
+	file1.Close()
+
 	stats2 := bench.Stats{
 		Failures:  1,
 		P50:       5,
@@ -832,15 +834,15 @@ func TestCompareStatsFiles_ReadsTwoFilesAndComparesThem(t *testing.T) {
 		Successes: 19,
 	}
 	f2 := dir + "/stats2.txt"
-	f, err = os.Create(f2)
+	file2, err := os.Create(f2)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = bench.WriteStatsFile(f, stats2)
+	err = bench.WriteStatsFile(file2, stats2)
 	if err != nil {
 		t.Fatal(err)
 	}
-	f.Close()
+	file2.Close()
 	got, err := bench.CompareStatsFiles(f1, f2)
 	if err != nil {
 		t.Fatal(err)
