@@ -1,6 +1,7 @@
 package bench
 
 import (
+	"bufio"
 	"errors"
 	"flag"
 	"fmt"
@@ -10,8 +11,9 @@ import (
 	"net/url"
 	"os"
 	"sort"
+	"strconv"
+	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"gonum.org/v1/plot"
@@ -20,45 +22,58 @@ import (
 )
 
 const (
+	DefaultConcurrency = 1
 	DefaultNumRequests = 1
+	DefaultOutputPath  = "./"
 	DefaultUserAgent   = "Bench 0.0.1 Alpha"
 )
 
 var (
 	DefaultHTTPClient = &http.Client{
-		Timeout: 30 * time.Second,
+		Timeout: 5 * time.Second,
 	}
-	ErrNoURL           = errors.New("no URL to test")
-	ErrTimeNotRecorded = errors.New("no execution time recorded")
+	ErrNoArgs           = errors.New("no arguments")
+	ErrNoURL            = errors.New("no URL to test")
+	ErrTimeNotRecorded  = errors.New("no execution time recorded")
+	ErrValueCannotBeNil = errors.New("value cannot be nil")
 )
 
 type Tester struct {
+	Concurrency    int
 	client         *http.Client
+	EndAt          time.Duration
+	ExportStats    bool
+	Graphs         bool
+	OutputPath     string
 	requests       int
 	startAt        time.Time
-	stats          Stats
 	stdout, stderr io.Writer
-	TimeRecorder   TimeRecorder
 	URL            string
 	userAgent      string
 	wg             *sync.WaitGroup
-	Graphs         bool
+	Work           chan struct{}
+
+	mu           *sync.Mutex
+	stats        Stats
+	TimeRecorder TimeRecorder
 }
 
 func NewTester(opts ...Option) (*Tester, error) {
 	tester := &Tester{
-		client:   &http.Client{Timeout: 30 * time.Second},
-		requests: DefaultNumRequests,
-		startAt:  time.Now(),
-		stats:    Stats{},
-		stderr:   os.Stderr,
-		stdout:   os.Stdout,
+		client:      DefaultHTTPClient,
+		Concurrency: DefaultConcurrency,
+		OutputPath:  DefaultOutputPath,
+		requests:    DefaultNumRequests,
+		stats:       Stats{},
+		stderr:      os.Stderr,
+		stdout:      os.Stdout,
 		TimeRecorder: TimeRecorder{
-			MU:             &sync.Mutex{},
 			ExecutionsTime: []float64{},
+			mu:             &sync.Mutex{},
 		},
 		userAgent: DefaultUserAgent,
 		wg:        &sync.WaitGroup{},
+		mu:        &sync.Mutex{},
 	}
 	for _, o := range opts {
 		err := o(tester)
@@ -73,13 +88,42 @@ func NewTester(opts ...Option) (*Tester, error) {
 	if err != nil {
 		return nil, err
 	}
-	if u.Scheme == "" || u.Host == "" {
+	if u.Host == "" {
 		return nil, fmt.Errorf("invalid URL %q", u)
 	}
 	if tester.requests < 1 {
 		return nil, fmt.Errorf("%d is invalid number of requests", tester.requests)
 	}
+	tester.Work = make(chan struct{})
 	return tester, nil
+}
+
+func FromArgs(args []string) Option {
+	return func(t *Tester) error {
+		fs := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+		fs.SetOutput(t.stderr)
+		reqs := fs.Int("r", 1, "number of requests to be performed in the benchmark")
+		graphs := fs.Bool("g", false, "generate graphs")
+		exportStats := fs.Bool("s", false, "generate stats file")
+		concurrency := fs.Int("c", 1, "number of concurrent requests (users) to run benchmark")
+		url := fs.String("u", "", "url to run benchmark")
+		if len(args) < 1 {
+			fs.Usage()
+			return ErrNoArgs
+		}
+		switch args[0] {
+		case "run":
+			fs.Parse(args[1:])
+			t.URL = *url
+			t.requests = *reqs
+			t.Graphs = *graphs
+			t.Concurrency = *concurrency
+			t.ExportStats = *exportStats
+		default:
+			return errors.New("expected run or cmp subcommands")
+		}
+		return nil
+	}
 }
 
 func WithRequests(reqs int) Option {
@@ -105,6 +149,9 @@ func WithHTTPClient(client *http.Client) Option {
 
 func WithStdout(w io.Writer) Option {
 	return func(t *Tester) error {
+		if w == nil {
+			return ErrValueCannotBeNil
+		}
 		t.stdout = w
 		return nil
 	}
@@ -112,29 +159,17 @@ func WithStdout(w io.Writer) Option {
 
 func WithStderr(w io.Writer) Option {
 	return func(lg *Tester) error {
+		if w == nil {
+			return ErrValueCannotBeNil
+		}
 		lg.stderr = w
 		return nil
 	}
 }
 
-func FromArgs(args []string) Option {
-	return func(t *Tester) error {
-		fset := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
-		fset.SetOutput(t.stderr)
-		reqs := fset.Int("r", 1, "number of requests to be performed in the benchmark")
-		graphs := fset.Bool("g", false, "generate graphs")
-		err := fset.Parse(args)
-		if err != nil {
-			return err
-		}
-		args = fset.Args()
-		if len(args) < 1 {
-			fset.Usage()
-			return ErrNoURL
-		}
-		t.URL = args[0]
-		t.requests = *reqs
-		t.Graphs = *graphs
+func WithConcurrency(c int) Option {
+	return func(lg *Tester) error {
+		lg.Concurrency = c
 		return nil
 	}
 }
@@ -142,6 +177,27 @@ func FromArgs(args []string) Option {
 func WithURL(URL string) Option {
 	return func(t *Tester) error {
 		t.URL = URL
+		return nil
+	}
+}
+
+func WithOutputPath(outputPath string) Option {
+	return func(t *Tester) error {
+		t.OutputPath = outputPath
+		return nil
+	}
+}
+
+func WithGraphs(graphs bool) Option {
+	return func(t *Tester) error {
+		t.Graphs = graphs
+		return nil
+	}
+}
+
+func WithExportStats(exportStats bool) Option {
+	return func(t *Tester) error {
+		t.ExportStats = exportStats
 		return nil
 	}
 }
@@ -167,36 +223,45 @@ func (t Tester) Requests() int {
 }
 
 func (t *Tester) DoRequest() {
-	t.RecordRequest()
-	req, err := http.NewRequest(http.MethodGet, t.URL, nil)
-	if err != nil {
-		t.LogStdErr(err.Error())
-		t.RecordFailure()
-		return
+	for range t.Work {
+		t.RecordRequest()
+		req, err := http.NewRequest(http.MethodGet, t.URL, nil)
+		if err != nil {
+			t.LogStdErr(err.Error())
+			t.RecordFailure()
+			return
+		}
+		req.Header.Set("user-agent", t.HTTPUserAgent())
+		req.Header.Set("accept", "*/*")
+		startTime := time.Now()
+		resp, err := t.client.Do(req)
+		elapsedTime := time.Since(startTime)
+		if err != nil {
+			t.RecordFailure()
+			t.LogStdErr(err.Error())
+			return
+		}
+		t.TimeRecorder.RecordTime(float64(elapsedTime.Nanoseconds()) / 1000000.0)
+		if resp.StatusCode != http.StatusOK {
+			t.LogFStdErr("unexpected status code %d\n", resp.StatusCode)
+			t.RecordFailure()
+			return
+		}
+		t.RecordSuccess()
 	}
-	req.Header.Set("user-agent", t.HTTPUserAgent())
-	req.Header.Set("accept", "*/*")
-	startTime := time.Now()
-	resp, err := t.client.Do(req)
-	elapsedTime := time.Since(startTime)
-	if err != nil {
-		t.RecordFailure()
-		t.LogStdErr(err.Error())
-		return
-	}
-	t.TimeRecorder.RecordTime(float64(elapsedTime.Nanoseconds()) / 1000000.0)
-	if resp.StatusCode != http.StatusOK {
-		t.LogFStdErr("unexpected status code %d\n", resp.StatusCode)
-		t.RecordFailure()
-		return
-	}
-	t.RecordSuccess()
 }
 
-func (t *Tester) Run() {
-	t.wg.Add(t.requests)
+func (t *Tester) Run() error {
+	t.wg.Add(t.Concurrency)
 	go func() {
 		for x := 0; x < t.requests; x++ {
+			t.Work <- struct{}{}
+		}
+		close(t.Work)
+	}()
+	t.startAt = time.Now()
+	go func() {
+		for x := 0; x < t.Concurrency; x++ {
 			go func() {
 				t.DoRequest()
 				t.wg.Done()
@@ -204,13 +269,36 @@ func (t *Tester) Run() {
 		}
 	}()
 	t.wg.Wait()
-	t.SetMetrics()
-	t.Boxplot()
-	t.Histogram()
-	t.LogFStdOut("URL: %q benchmark is done\n", t.URL)
-	t.LogFStdOut("Time: %v Requests: %d Success: %d Failures: %d\n", time.Since(t.startAt), t.stats.Requests, t.stats.Successes, t.stats.Failures)
-	t.LogFStdOut("90th percentile: %v 99th percentile: %v\n", t.stats.Perc90, t.stats.Perc99)
-	t.LogFStdOut("Fastest: %v Mean: %v Slowest: %v\n", t.stats.Fastest, t.stats.Mean, t.stats.Slowest)
+	t.EndAt = time.Since(t.startAt)
+	err := t.SetMetrics()
+	if err != nil {
+		return err
+	}
+	if t.Graphs {
+		err = t.Boxplot()
+		if err != nil {
+			return err
+		}
+		err = t.Histogram()
+		if err != nil {
+			return err
+		}
+	}
+	if t.ExportStats {
+		file, err := os.Create(fmt.Sprintf("%s/%s", t.OutputPath, "statsfile.txt"))
+		if err != nil {
+			return err
+		}
+		defer file.Close()
+		err = WriteStatsFile(file, t.Stats())
+		if err != nil {
+			return err
+		}
+	}
+	t.LogFStdOut("The benchmark of %s site took %v\n", t.URL, t.EndAt.Round(time.Millisecond))
+	t.LogFStdOut("Requests: %d Success: %d Failures: %d\n", t.stats.Requests, t.stats.Successes, t.stats.Failures)
+	t.LogFStdOut("P50: %.3fms P90: %.3fms P99: %.3fms\n", t.stats.P50, t.stats.P90, t.stats.P99)
+	return nil
 }
 
 func (t Tester) Boxplot() error {
@@ -224,7 +312,7 @@ func (t Tester) Boxplot() error {
 		return err
 	}
 	p.Add(box)
-	err = p.Save(600, 400, "file.png")
+	err = p.Save(600, 400, fmt.Sprintf("%s/%s", t.OutputPath, "boxplot.png"))
 	if err != nil {
 		return err
 	}
@@ -241,7 +329,7 @@ func (t Tester) Histogram() error {
 		return err
 	}
 	p.Add(hist)
-	err = p.Save(600, 400, "histogram.png")
+	err = p.Save(600, 400, fmt.Sprintf("%s/%s", t.OutputPath, "histogram.png"))
 	if err != nil {
 		return err
 	}
@@ -249,15 +337,21 @@ func (t Tester) Histogram() error {
 }
 
 func (t *Tester) RecordRequest() {
-	atomic.AddUint64(&t.stats.Requests, 1)
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.stats.Requests++
 }
 
 func (t *Tester) RecordSuccess() {
-	atomic.AddUint64(&t.stats.Successes, 1)
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.stats.Successes++
 }
 
 func (t *Tester) RecordFailure() {
-	atomic.AddUint64(&t.stats.Failures, 1)
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.stats.Failures++
 }
 
 func (t Tester) LogStdOut(msg string) {
@@ -284,50 +378,142 @@ func (t *Tester) SetMetrics() error {
 	sort.Slice(times, func(i, j int) bool {
 		return times[i] < times[j]
 	})
-	perc90Index := int(math.Round(float64(len(times))*0.9)) - 1
-	t.stats.Perc90 = times[perc90Index]
-	perc99Index := int(math.Round(float64(len(times))*0.99)) - 1
-	t.stats.Perc99 = times[perc99Index]
+	p50Idx := int(math.Round(float64(len(times))*0.5)) - 1
+	t.stats.P50 = times[p50Idx]
+	p90Idx := int(math.Round(float64(len(times))*0.9)) - 1
+	t.stats.P90 = times[p90Idx]
+	p99Idx := int(math.Round(float64(len(times))*0.99)) - 1
+	t.stats.P99 = times[p99Idx]
 
 	nreq := 0.0
 	totalTime := 0.0
-	t.stats.Fastest = times[0]
-	t.stats.Slowest = times[0]
 	for _, v := range times {
 		nreq++
 		totalTime += v
-		if v < t.stats.Fastest {
-			t.stats.Fastest = v
-			continue
-		}
-		if v > t.stats.Slowest {
-			t.stats.Slowest = v
-		}
 	}
+	t.stats.URL = t.URL
 	t.stats.Mean = totalTime / nreq
 	return nil
 }
 
 type Stats struct {
-	Failures  uint64
-	Fastest   float64
+	URL       string
 	Mean      float64
-	Perc90    float64
-	Perc99    float64
-	Requests  uint64
-	Slowest   float64
-	Successes uint64
+	P50       float64
+	P90       float64
+	P99       float64
+	Failures  int
+	Requests  int
+	Successes int
+}
+
+type StatsDelta struct {
+	P50       float64
+	P90       float64
+	P99       float64
+	Requests  int
+	Failures  int
+	Successes int
+}
+
+type TimeRecorder struct {
+	mu             *sync.Mutex
+	ExecutionsTime []float64
+}
+
+func (t *TimeRecorder) RecordTime(executionTime float64) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.ExecutionsTime = append(t.ExecutionsTime, executionTime)
 }
 
 type Option func(*Tester) error
 
-type TimeRecorder struct {
-	ExecutionsTime []float64
-	MU             *sync.Mutex
+func CompareStats(stats1, stats2 Stats) StatsDelta {
+	statsDelta := StatsDelta{
+		P50:       stats2.P50 - stats1.P50,
+		P90:       stats2.P90 - stats1.P90,
+		P99:       stats2.P99 - stats1.P99,
+		Requests:  stats2.Requests - stats1.Requests,
+		Successes: stats2.Successes - stats1.Successes,
+		Failures:  stats2.Failures - stats1.Failures,
+	}
+	return statsDelta
 }
 
-func (t *TimeRecorder) RecordTime(executionTime float64) {
-	t.MU.Lock()
-	defer t.MU.Unlock()
-	t.ExecutionsTime = append(t.ExecutionsTime, executionTime)
+func CompareStatsFiles(path1, path2 string) (StatsDelta, error) {
+	f1, err := os.Open(path1)
+	if err != nil {
+		return StatsDelta{}, err
+	}
+	defer f1.Close()
+	ReadStatsFile(f1)
+	f2, err := os.Open(path1)
+	if err != nil {
+		return StatsDelta{}, err
+	}
+	defer f2.Close()
+	return StatsDelta{}, nil
+}
+
+func ReadStatsFile(r io.Reader) ([]Stats, error) {
+	scanner := bufio.NewScanner(r)
+	stats := []Stats{}
+	for scanner.Scan() {
+		pos := strings.Split(scanner.Text(), ",")
+		url := pos[0]
+		dataRequests := pos[1]
+		requests, err := strconv.Atoi(dataRequests)
+		if err != nil {
+			return nil, err
+		}
+		dataSuccesses := pos[2]
+		successes, err := strconv.Atoi(dataSuccesses)
+		if err != nil {
+			return nil, err
+		}
+		dataFailures := pos[3]
+		failures, err := strconv.Atoi(dataFailures)
+		if err != nil {
+			return nil, err
+		}
+		dataP50 := pos[4]
+		p50, err := strconv.ParseFloat(dataP50, 64)
+		if err != nil {
+			return nil, err
+		}
+		dataP90 := pos[5]
+		p90, err := strconv.ParseFloat(dataP90, 64)
+		if err != nil {
+			return nil, err
+		}
+		dataP99 := pos[6]
+		p99, err := strconv.ParseFloat(dataP99, 64)
+		if err != nil {
+			return nil, err
+		}
+		stats = append(stats, Stats{
+			Failures:  failures,
+			P50:       p50,
+			P90:       p90,
+			P99:       p99,
+			Requests:  requests,
+			Successes: successes,
+			URL:       url,
+		})
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+	return stats, nil
+}
+
+func WriteStatsFile(w io.Writer, stats Stats) error {
+	_, err := fmt.Fprintf(w, "%s,%d,%d,%d,%.3f,%.3f,%.3f",
+		stats.URL, stats.Requests, stats.Successes, stats.Failures, stats.P50, stats.P90, stats.P99,
+	)
+	if err != nil {
+		return err
+	}
+	return nil
 }
