@@ -62,7 +62,7 @@ func TestNewTester_ByDefaultIsSetForDefaultNumRequests(t *testing.T) {
 	}
 }
 
-func TestNewTester_WorkChannel_ByDefaultIsSetAsUnbuffered(t *testing.T) {
+func TestNewTester_WorkChannelByDefaultIsSetAsUnbuffered(t *testing.T) {
 	t.Parallel()
 	tester, err := bench.NewTester(
 		bench.WithURL("http://fake.url"),
@@ -107,7 +107,7 @@ func TestNewTester_ByDefaultIsSetForDefaultConcurrency(t *testing.T) {
 	}
 }
 
-func TestNewTester_WithNConcurrent_SetsNConcurrenty(t *testing.T) {
+func TestNewTester_WithNConcurrentSetsNConcurrenty(t *testing.T) {
 	t.Parallel()
 	tester, err := bench.NewTester(
 		bench.WithURL("http://fake.url"),
@@ -139,7 +139,7 @@ func TestFromArgs_CFlagSetsNConcurrency(t *testing.T) {
 	}
 }
 
-func TestNewTester_WithOutputPath_SetsOutputPath(t *testing.T) {
+func TestNewTester_WithOutputPathSetsOutputPath(t *testing.T) {
 	t.Parallel()
 	tester, err := bench.NewTester(
 		bench.WithURL("http://fake.url"),
@@ -650,7 +650,7 @@ func TestFromArgs_WithoutSFlagDisablesExportStatsMode(t *testing.T) {
 	}
 }
 
-func TestConfiguredExportStatsFlagGenerateStatsFile(t *testing.T) {
+func TestExportStatsFlagTrueGenerateStatsFile(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewTLSServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(rw, "HelloWorld")
@@ -685,7 +685,7 @@ func TestConfiguredExportStatsFlagGenerateStatsFile(t *testing.T) {
 	})
 }
 
-func TestUnconfiguredExportStatsFlagDoesNotGenerateStatsFile(t *testing.T) {
+func TestDefaultExportStatsFlagDoesNotGenerateStatsFile(t *testing.T) {
 	t.Parallel()
 
 	server := httptest.NewTLSServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
@@ -719,7 +719,7 @@ func TestUnconfiguredExportStatsFlagDoesNotGenerateStatsFile(t *testing.T) {
 	})
 }
 
-func TestNewTesterWithURLSetsTesterURL(t *testing.T) {
+func TestNewTester_WithURLSetsTesterURL(t *testing.T) {
 	t.Parallel()
 	tester, err := bench.NewTester(
 		bench.WithURL("http://fake.url"),
@@ -733,7 +733,7 @@ func TestNewTesterWithURLSetsTesterURL(t *testing.T) {
 	}
 }
 
-func TestFromArgsWithURLSetsTesterURL(t *testing.T) {
+func TestFromArgs_WithURLSetsTesterURL(t *testing.T) {
 	t.Parallel()
 	tester, err := bench.NewTester(
 		bench.WithStderr(io.Discard),
@@ -748,7 +748,7 @@ func TestFromArgsWithURLSetsTesterURL(t *testing.T) {
 	}
 }
 
-func TestNewTesterWithoutWithURLReturnsErrorNoURL(t *testing.T) {
+func TestNewTester_ByDefaultReturnsErrorNoURL(t *testing.T) {
 	t.Parallel()
 	_, err := bench.NewTester(
 		bench.WithStderr(io.Discard),
@@ -769,7 +769,7 @@ func TestFromArgs_GivenNoArgsReturnsUsageMessage(t *testing.T) {
 	}
 }
 
-func TestFromArgsWithoutURLReturnsErrorNoURL(t *testing.T) {
+func TestFromArgs_WithoutUFlagReturnsErrorNoURL(t *testing.T) {
 	t.Parallel()
 	_, err := bench.NewTester(
 		bench.WithStderr(io.Discard),
@@ -780,7 +780,7 @@ func TestFromArgsWithoutURLReturnsErrorNoURL(t *testing.T) {
 	}
 }
 
-func TestNewTesterWithNilStdoutReturnsErrorValueCannotBeNil(t *testing.T) {
+func TestNewTester_WithNilStdoutReturnsErrorValueCannotBeNil(t *testing.T) {
 	t.Parallel()
 	_, err := bench.NewTester(
 		bench.WithURL("http://fake.url"),
@@ -791,7 +791,7 @@ func TestNewTesterWithNilStdoutReturnsErrorValueCannotBeNil(t *testing.T) {
 	}
 }
 
-func TestNewTesterWithNilStderrReturnsErrorValueCannotBeNil(t *testing.T) {
+func TestNewTester_WithNilStderrReturnsErrorValueCannotBeNil(t *testing.T) {
 	t.Parallel()
 	_, err := bench.NewTester(
 		bench.WithURL("http://fake.url"),
@@ -863,7 +863,7 @@ func TestCompareStatsFiles_ErrorsIfOneOrBothFilesUnreadable(t *testing.T) {
 	}
 }
 
-func TestReadStatsPopulatesCorrectStats(t *testing.T) {
+func TestReadStats_PopulatesCorrectStats(t *testing.T) {
 	t.Parallel()
 	statsReader := strings.NewReader(`http://fake.url,20,19,1,100.123,150.000,198.465`)
 	got, err := bench.ReadStats(statsReader)
@@ -885,7 +885,7 @@ func TestReadStatsPopulatesCorrectStats(t *testing.T) {
 	}
 }
 
-func TestReadStatsFilePopulatesCorrectStatsFile(t *testing.T) {
+func TestReadStatsFile_PopulatesCorrectStatsFile(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
@@ -917,7 +917,7 @@ func TestReadStatsFilePopulatesCorrectStatsFile(t *testing.T) {
 		t.Error(cmp.Diff(want, got))
 	}
 }
-func TestCompareStatsReturnsCorrectStatsDelta(t *testing.T) {
+func TestCompareStats_ReturnsCorrectStatsDelta(t *testing.T) {
 	t.Parallel()
 	stats1 := bench.Stats{
 		Failures:  2,
@@ -949,7 +949,7 @@ func TestCompareStatsReturnsCorrectStatsDelta(t *testing.T) {
 	}
 }
 
-func TestWriteStatsPopulatesCorrectStats(t *testing.T) {
+func TestWriteStats_PopulatesCorrectStats(t *testing.T) {
 	t.Parallel()
 	stats := bench.Stats{
 		Failures:  2,
