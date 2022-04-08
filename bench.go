@@ -447,7 +447,7 @@ func CompareStatsFiles(path1, path2 string) (StatsDelta, error) {
 		return StatsDelta{}, err
 	}
 	defer f1.Close()
-	s1, err := ReadStats(f1)
+	s1, err := ReadStatsFile(path1)
 	if err != nil {
 		return StatsDelta{}, err
 	}
@@ -461,6 +461,19 @@ func CompareStatsFiles(path1, path2 string) (StatsDelta, error) {
 		return StatsDelta{}, err
 	}
 	return CompareStats(s1, s2), nil
+}
+
+func ReadStatsFile(path string) (Stats, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return Stats{}, err
+	}
+	defer f.Close()
+	stats, err := ReadStats(f)
+	if err != nil {
+		return Stats{}, err
+	}
+	return stats, nil
 }
 
 func ReadStats(r io.Reader) (Stats, error) {
@@ -519,6 +532,19 @@ func WriteStats(w io.Writer, stats Stats) error {
 	_, err := fmt.Fprintf(w, "%s,%d,%d,%d,%.3f,%.3f,%.3f",
 		stats.URL, stats.Requests, stats.Successes, stats.Failures, stats.P50, stats.P90, stats.P99,
 	)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func WriteStatsFile(path string, stats Stats) error {
+	f, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	err = WriteStats(f, stats)
 	if err != nil {
 		return err
 	}

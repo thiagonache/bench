@@ -47,7 +47,7 @@ func TestNonOKStatusRecordedAsFailure(t *testing.T) {
 	}
 }
 
-func TestNewTesterByDefaultIsConfiguredForDefaultNumRequests(t *testing.T) {
+func TestNewTester_ByDefaultIsSetForDefaultNumRequests(t *testing.T) {
 	t.Parallel()
 	tester, err := bench.NewTester(
 		bench.WithURL("http://fake.url"),
@@ -62,7 +62,7 @@ func TestNewTesterByDefaultIsConfiguredForDefaultNumRequests(t *testing.T) {
 	}
 }
 
-func TestNewTesterConfiguresWorkChannelByDefaultAsUnbufferedChannel(t *testing.T) {
+func TestNewTester_WorkChannelByDefaultIsSetAsUnbuffered(t *testing.T) {
 	t.Parallel()
 	tester, err := bench.NewTester(
 		bench.WithURL("http://fake.url"),
@@ -77,7 +77,7 @@ func TestNewTesterConfiguresWorkChannelByDefaultAsUnbufferedChannel(t *testing.T
 	}
 }
 
-func TestNewTesterByDefaultIsConfiguredForDefaultOutputPath(t *testing.T) {
+func TestNewTester_ByDefaultIsSetForDefaultOutputPath(t *testing.T) {
 	t.Parallel()
 	tester, err := bench.NewTester(
 		bench.WithURL("http://fake.url"),
@@ -92,7 +92,7 @@ func TestNewTesterByDefaultIsConfiguredForDefaultOutputPath(t *testing.T) {
 	}
 }
 
-func TestNewTesterByDefaultIsConfiguredForDefaultConcurrency(t *testing.T) {
+func TestNewTester_ByDefaultIsSetForDefaultConcurrency(t *testing.T) {
 	t.Parallel()
 	tester, err := bench.NewTester(
 		bench.WithURL("http://fake.url"),
@@ -107,7 +107,7 @@ func TestNewTesterByDefaultIsConfiguredForDefaultConcurrency(t *testing.T) {
 	}
 }
 
-func TestNewTesterWithNConcurrentRequestsIsConfiguredForNConcurrentRequests(t *testing.T) {
+func TestNewTester_WithNConcurrentSetsNConcurrenty(t *testing.T) {
 	t.Parallel()
 	tester, err := bench.NewTester(
 		bench.WithURL("http://fake.url"),
@@ -122,7 +122,7 @@ func TestNewTesterWithNConcurrentRequestsIsConfiguredForNConcurrentRequests(t *t
 	}
 }
 
-func TestFromArgsNConcurrencyConfiguresNConcurrency(t *testing.T) {
+func TestFromArgs_CFlagSetsNConcurrency(t *testing.T) {
 	t.Parallel()
 	args := []string{"run", "-c", "10", "-u", "http://fake.url"}
 	tester, err := bench.NewTester(
@@ -139,7 +139,7 @@ func TestFromArgsNConcurrencyConfiguresNConcurrency(t *testing.T) {
 	}
 }
 
-func TestNewTesterWithOutputPathIsConfiguredForOutputPath(t *testing.T) {
+func TestNewTester_WithOutputPathSetsOutputPath(t *testing.T) {
 	t.Parallel()
 	tester, err := bench.NewTester(
 		bench.WithURL("http://fake.url"),
@@ -155,7 +155,7 @@ func TestNewTesterWithOutputPathIsConfiguredForOutputPath(t *testing.T) {
 	}
 }
 
-func TestNewTesterWithNRequestsIsConfiguredForNRequests(t *testing.T) {
+func TestNewTester_WithNRequestsIsConfiguredForNRequests(t *testing.T) {
 	t.Parallel()
 	tester, err := bench.NewTester(
 		bench.WithURL("http://fake.url"),
@@ -170,7 +170,7 @@ func TestNewTesterWithNRequestsIsConfiguredForNRequests(t *testing.T) {
 	}
 }
 
-func TestNewTesterWithInvalidRequestsReturnsError(t *testing.T) {
+func TestNewTester_WithInvalidRequestsReturnsError(t *testing.T) {
 	t.Parallel()
 	_, err := bench.NewTester(
 		bench.WithURL("http://fake.url"),
@@ -181,7 +181,7 @@ func TestNewTesterWithInvalidRequestsReturnsError(t *testing.T) {
 	}
 }
 
-func TestNewTesterByDefaultSetsDefaultHTTPUserAgent(t *testing.T) {
+func TestNewTester_ByDefaultSetsDefaultHTTPUserAgent(t *testing.T) {
 	t.Parallel()
 	tester, err := bench.NewTester(
 		bench.WithURL("http://fake.url"),
@@ -196,7 +196,7 @@ func TestNewTesterByDefaultSetsDefaultHTTPUserAgent(t *testing.T) {
 	}
 }
 
-func TestNewTesterWithUserAgentXSetsUserAgentX(t *testing.T) {
+func TestNewTester_WithUserAgentXSetsUserAgentX(t *testing.T) {
 	t.Parallel()
 	tester, err := bench.NewTester(
 		bench.WithURL("http://fake.url"),
@@ -212,7 +212,7 @@ func TestNewTesterWithUserAgentXSetsUserAgentX(t *testing.T) {
 	}
 }
 
-func TestNewTesterByDefaultSetsDefaultHTTPClient(t *testing.T) {
+func TestNewTester_ByDefaultSetsDefaultHTTPClient(t *testing.T) {
 	t.Parallel()
 	tester, err := bench.NewTester(
 		bench.WithURL("http://fake.url"),
@@ -228,7 +228,7 @@ func TestNewTesterByDefaultSetsDefaultHTTPClient(t *testing.T) {
 	}
 }
 
-func TestNewTesterWithHTTPClientXSetsHTTPClientX(t *testing.T) {
+func TestNewTester_WithHTTPClientXSetsHTTPClientX(t *testing.T) {
 	t.Parallel()
 	tester, err := bench.NewTester(
 		bench.WithURL("http://fake.url"),
@@ -248,7 +248,7 @@ func TestNewTesterWithHTTPClientXSetsHTTPClientX(t *testing.T) {
 	}
 }
 
-func TestNewTesterWithInvalidURLReturnsError(t *testing.T) {
+func TestNewTester_WithInvalidURLReturnsError(t *testing.T) {
 	t.Parallel()
 	inputs := []string{
 		"bogus-no-scheme-or-domain",
@@ -265,7 +265,7 @@ func TestNewTesterWithInvalidURLReturnsError(t *testing.T) {
 	}
 }
 
-func TestNewTesterWithValidURLReturnsNoError(t *testing.T) {
+func TestNewTester_WithValidURLReturnsNoError(t *testing.T) {
 	t.Parallel()
 	_, err := bench.NewTester(
 		bench.WithURL("http://fake.url"),
@@ -312,7 +312,7 @@ func TestRunReturnsValidStatsAndTime(t *testing.T) {
 	}
 }
 
-func TestTimeRecorderCalledMultipleTimesSetCorrectStatsAndReturnsNoError(t *testing.T) {
+func TestRecordTime_CalledMultipleTimesSetsCorrectStatsAndNoError(t *testing.T) {
 	t.Parallel()
 	tester, err := bench.NewTester(
 		bench.WithURL("http://fake.url"),
@@ -336,7 +336,7 @@ func TestTimeRecorderCalledMultipleTimesSetCorrectStatsAndReturnsNoError(t *test
 	}
 }
 
-func TestTimeRecorderCalledMultipleTimesSetCorrectPercentilesAndReturnsNoError(t *testing.T) {
+func TestRecordTime_CalledMultipleTimesSetCorrectPercentilesAndReturnsNoError(t *testing.T) {
 	t.Parallel()
 	tester, err := bench.NewTester(
 		bench.WithURL("http://fake.url"),
@@ -368,7 +368,7 @@ func TestTimeRecorderCalledMultipleTimesSetCorrectPercentilesAndReturnsNoError(t
 	}
 }
 
-func TestSetMetricsReturnsErrorIfRecordTimeIsNotCalled(t *testing.T) {
+func TestSetMetrics_ErrorsIfRecordTimeIsNotCalled(t *testing.T) {
 	t.Parallel()
 	tester, err := bench.NewTester(
 		bench.WithURL("http://fake.url"),
@@ -437,7 +437,7 @@ func TestLogfPrintsToStdoutAndStderr(t *testing.T) {
 	}
 }
 
-func TestFromArgsNRequestsConfiguresNRequests(t *testing.T) {
+func TestFromArgs_RFlagSetsNRequests(t *testing.T) {
 	t.Parallel()
 	args := []string{"run", "-r", "10", "-u", "http://fake.url"}
 	tester, err := bench.NewTester(
@@ -454,7 +454,7 @@ func TestFromArgsNRequestsConfiguresNRequests(t *testing.T) {
 	}
 }
 
-func TestNewTesterWithGraphsSetsGraphsMode(t *testing.T) {
+func TestNewTester_WithGraphsSetsGraphsMode(t *testing.T) {
 	t.Parallel()
 	tester, err := bench.NewTester(
 		bench.WithURL("http://fake.url"),
@@ -469,7 +469,7 @@ func TestNewTesterWithGraphsSetsGraphsMode(t *testing.T) {
 	}
 }
 
-func TestNewTesterWithNoGraphsSetsNoGraphsMode(t *testing.T) {
+func TestNewTester_ByDefaultSetsNoGraphsMode(t *testing.T) {
 	t.Parallel()
 	tester, err := bench.NewTester(
 		bench.WithURL("http://fake.url"),
@@ -483,7 +483,7 @@ func TestNewTesterWithNoGraphsSetsNoGraphsMode(t *testing.T) {
 	}
 }
 
-func TestFromArgsGraphsFlagConfiguresGraphsMode(t *testing.T) {
+func TestFromArgs_GFlagSetsGraphsMode(t *testing.T) {
 	t.Parallel()
 	args := []string{"run", "-g", "-u", "http://fake.url"}
 	tester, err := bench.NewTester(
@@ -498,7 +498,7 @@ func TestFromArgsGraphsFlagConfiguresGraphsMode(t *testing.T) {
 	}
 }
 
-func TestFromArgsNoGraphsFlagConfiguresNoGraphsMode(t *testing.T) {
+func TestFromArgs_ByDefaultSetsNoGraphsMode(t *testing.T) {
 	t.Parallel()
 	args := []string{"run", "-u", "http://fake.url"}
 	tester, err := bench.NewTester(
@@ -513,7 +513,7 @@ func TestFromArgsNoGraphsFlagConfiguresNoGraphsMode(t *testing.T) {
 	}
 }
 
-func TestConfiguredGraphsFlagGenerateGraphs(t *testing.T) {
+func TestTrueGraphsModeGeneratesGraphs(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewTLSServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(rw, "HelloWorld")
@@ -552,7 +552,7 @@ func TestConfiguredGraphsFlagGenerateGraphs(t *testing.T) {
 	})
 }
 
-func TestUnconfiguredGraphsFlagDoesNotGenerateGraphs(t *testing.T) {
+func TestDefaultGraphsModeDoesNotGenerateGraphs(t *testing.T) {
 	t.Parallel()
 
 	server := httptest.NewTLSServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
@@ -591,7 +591,7 @@ func TestUnconfiguredGraphsFlagDoesNotGenerateGraphs(t *testing.T) {
 	})
 }
 
-func TestNewTesterWithStatsSetsExportStatsMode(t *testing.T) {
+func TestNewTester_WithStatsSetsExportStatsMode(t *testing.T) {
 	t.Parallel()
 	tester, err := bench.NewTester(
 		bench.WithURL("http://fake.url"),
@@ -606,7 +606,7 @@ func TestNewTesterWithStatsSetsExportStatsMode(t *testing.T) {
 	}
 }
 
-func TestNewTesterWithNoExportStatsSetsNoExportStatsMode(t *testing.T) {
+func TestNewTester_ByDefaultSetsNoExportStatsMode(t *testing.T) {
 	t.Parallel()
 	tester, err := bench.NewTester(
 		bench.WithURL("http://fake.url"),
@@ -650,7 +650,7 @@ func TestFromArgs_WithoutSFlagDisablesExportStatsMode(t *testing.T) {
 	}
 }
 
-func TestConfiguredExportStatsFlagGenerateStatsFile(t *testing.T) {
+func TestExportStatsFlagTrueGenerateStatsFile(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewTLSServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(rw, "HelloWorld")
@@ -685,7 +685,7 @@ func TestConfiguredExportStatsFlagGenerateStatsFile(t *testing.T) {
 	})
 }
 
-func TestUnconfiguredExportStatsFlagDoesNotGenerateStatsFile(t *testing.T) {
+func TestDefaultExportStatsFlagDoesNotGenerateStatsFile(t *testing.T) {
 	t.Parallel()
 
 	server := httptest.NewTLSServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
@@ -719,7 +719,7 @@ func TestUnconfiguredExportStatsFlagDoesNotGenerateStatsFile(t *testing.T) {
 	})
 }
 
-func TestNewTesterWithURLSetsTesterURL(t *testing.T) {
+func TestNewTester_WithURLSetsTesterURL(t *testing.T) {
 	t.Parallel()
 	tester, err := bench.NewTester(
 		bench.WithURL("http://fake.url"),
@@ -733,7 +733,7 @@ func TestNewTesterWithURLSetsTesterURL(t *testing.T) {
 	}
 }
 
-func TestFromArgsWithURLSetsTesterURL(t *testing.T) {
+func TestFromArgs_WithURLSetsTesterURL(t *testing.T) {
 	t.Parallel()
 	tester, err := bench.NewTester(
 		bench.WithStderr(io.Discard),
@@ -748,7 +748,7 @@ func TestFromArgsWithURLSetsTesterURL(t *testing.T) {
 	}
 }
 
-func TestNewTesterWithoutWithURLReturnsErrorNoURL(t *testing.T) {
+func TestNewTester_ByDefaultReturnsErrorNoURL(t *testing.T) {
 	t.Parallel()
 	_, err := bench.NewTester(
 		bench.WithStderr(io.Discard),
@@ -769,7 +769,7 @@ func TestFromArgs_GivenNoArgsReturnsUsageMessage(t *testing.T) {
 	}
 }
 
-func TestFromArgsWithoutURLReturnsErrorNoURL(t *testing.T) {
+func TestFromArgs_WithoutUFlagReturnsErrorNoURL(t *testing.T) {
 	t.Parallel()
 	_, err := bench.NewTester(
 		bench.WithStderr(io.Discard),
@@ -780,7 +780,7 @@ func TestFromArgsWithoutURLReturnsErrorNoURL(t *testing.T) {
 	}
 }
 
-func TestNewTesterWithNilStdoutReturnsErrorValueCannotBeNil(t *testing.T) {
+func TestNewTester_WithNilStdoutReturnsErrorValueCannotBeNil(t *testing.T) {
 	t.Parallel()
 	_, err := bench.NewTester(
 		bench.WithURL("http://fake.url"),
@@ -791,7 +791,7 @@ func TestNewTesterWithNilStdoutReturnsErrorValueCannotBeNil(t *testing.T) {
 	}
 }
 
-func TestNewTesterWithNilStderrReturnsErrorValueCannotBeNil(t *testing.T) {
+func TestNewTester_WithNilStderrReturnsErrorValueCannotBeNil(t *testing.T) {
 	t.Parallel()
 	_, err := bench.NewTester(
 		bench.WithURL("http://fake.url"),
@@ -805,7 +805,6 @@ func TestNewTesterWithNilStderrReturnsErrorValueCannotBeNil(t *testing.T) {
 func TestCompareStatsFiles_ReadsTwoFilesAndComparesThem(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-
 	stats1 := bench.Stats{
 		Failures:  2,
 		P50:       20,
@@ -815,15 +814,10 @@ func TestCompareStatsFiles_ReadsTwoFilesAndComparesThem(t *testing.T) {
 		Successes: 18,
 	}
 	f1 := dir + "/stats1.txt"
-	file1, err := os.Create(f1)
+	err := bench.WriteStatsFile(f1, stats1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = bench.WriteStats(file1, stats1)
-	if err != nil {
-		t.Fatal(err)
-	}
-	file1.Close()
 
 	stats2 := bench.Stats{
 		Failures:  1,
@@ -834,15 +828,10 @@ func TestCompareStatsFiles_ReadsTwoFilesAndComparesThem(t *testing.T) {
 		Successes: 19,
 	}
 	f2 := dir + "/stats2.txt"
-	file2, err := os.Create(f2)
+	err = bench.WriteStatsFile(f2, stats2)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = bench.WriteStats(file2, stats2)
-	if err != nil {
-		t.Fatal(err)
-	}
-	file2.Close()
 	got, err := bench.CompareStatsFiles(f1, f2)
 	if err != nil {
 		t.Fatal(err)
@@ -858,6 +847,13 @@ func TestCompareStatsFiles_ReadsTwoFilesAndComparesThem(t *testing.T) {
 	if !cmp.Equal(want, got) {
 		t.Error(cmp.Diff(want, got))
 	}
+
+	t.Cleanup(func() {
+		err := os.RemoveAll(dir)
+		if err != nil {
+			fmt.Printf("cannot delete %s\n", dir)
+		}
+	})
 }
 
 func TestCompareStatsFiles_ErrorsIfOneOrBothFilesUnreadable(t *testing.T) {
@@ -867,7 +863,7 @@ func TestCompareStatsFiles_ErrorsIfOneOrBothFilesUnreadable(t *testing.T) {
 	}
 }
 
-func TestReadStatsPopulatesCorrectStats(t *testing.T) {
+func TestReadStats_PopulatesCorrectStats(t *testing.T) {
 	t.Parallel()
 	statsReader := strings.NewReader(`http://fake.url,20,19,1,100.123,150.000,198.465`)
 	got, err := bench.ReadStats(statsReader)
@@ -889,7 +885,39 @@ func TestReadStatsPopulatesCorrectStats(t *testing.T) {
 	}
 }
 
-func TestCompareStatsReturnsCorrectStatsDelta(t *testing.T) {
+func TestReadStatsFile_PopulatesCorrectStatsFile(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	path := dir + "/stats.txt"
+	err := bench.WriteStatsFile(path, bench.Stats{
+		Failures:  2,
+		P50:       20,
+		P90:       30,
+		P99:       100,
+		Requests:  20,
+		Successes: 18,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := bench.Stats{
+		Failures:  2,
+		P50:       20,
+		P90:       30,
+		P99:       100,
+		Requests:  20,
+		Successes: 18,
+	}
+	got, err := bench.ReadStatsFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cmp.Equal(want, got) {
+		t.Error(cmp.Diff(want, got))
+	}
+}
+func TestCompareStats_ReturnsCorrectStatsDelta(t *testing.T) {
 	t.Parallel()
 	stats1 := bench.Stats{
 		Failures:  2,
@@ -921,7 +949,7 @@ func TestCompareStatsReturnsCorrectStatsDelta(t *testing.T) {
 	}
 }
 
-func TestWriteStatsPopulatesCorrectStats(t *testing.T) {
+func TestWriteStats_PopulatesCorrectStats(t *testing.T) {
 	t.Parallel()
 	stats := bench.Stats{
 		Failures:  2,
