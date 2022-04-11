@@ -685,7 +685,7 @@ func TestExportStatsFlagTrueGenerateStatsFile(t *testing.T) {
 	})
 }
 
-func TestNewTester_ByDefaultExportStatsFlagDoesNotGenerateStatsFile(t *testing.T) {
+func TestNewTester_ByDefaultDoesNotGenerateStatsFile(t *testing.T) {
 	t.Parallel()
 
 	server := httptest.NewTLSServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
