@@ -802,7 +802,7 @@ func TestNewTester_WithNilStderrReturnsErrorValueCannotBeNil(t *testing.T) {
 	}
 }
 
-func TestCompareStatsFiles_ReadsTwoFilesAndComparesThem(t *testing.T) {
+func TestReadStatsFiles_ReadsTwoFilesAndReturnsCorrectStatsCompares(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	stats1 := bench.Stats{
@@ -832,17 +832,26 @@ func TestCompareStatsFiles_ReadsTwoFilesAndComparesThem(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	got, err := bench.CompareStatsFiles(f1, f2)
+	got, err := bench.ReadStatsFiles(f1, f2)
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := bench.StatsDelta{
-		P50:       -15,
-		P90:       3,
-		P99:       -1,
-		Failures:  -1,
-		Requests:  20,
-		Successes: 1,
+	want := bench.StatsCompare{
+		S1: bench.Stats{
+			P50:       20,
+			P90:       30,
+			P99:       100,
+			Failures:  2,
+			Requests:  20,
+			Successes: 18,
+		},
+		S2: bench.Stats{
+			P50:       5,
+			P90:       33,
+			P99:       99,
+			Failures:  1,
+			Requests:  40,
+			Successes: 19},
 	}
 	if !cmp.Equal(want, got) {
 		t.Error(cmp.Diff(want, got))
@@ -857,7 +866,7 @@ func TestCompareStatsFiles_ReadsTwoFilesAndComparesThem(t *testing.T) {
 }
 
 func TestCompareStatsFiles_ErrorsIfOneOrBothFilesUnreadable(t *testing.T) {
-	_, err := bench.CompareStatsFiles("bogus", "even more bogus")
+	_, err := bench.ReadStatsFiles("bogus", "even more bogus")
 	if err == nil {
 		t.Error("no error")
 	}
@@ -912,37 +921,6 @@ func TestReadStatsFile_PopulatesCorrectStatsFile(t *testing.T) {
 	got, err := bench.ReadStatsFile(path)
 	if err != nil {
 		t.Fatal(err)
-	}
-	if !cmp.Equal(want, got) {
-		t.Error(cmp.Diff(want, got))
-	}
-}
-func TestCompareStats_ReturnsCorrectStatsDelta(t *testing.T) {
-	t.Parallel()
-	stats1 := bench.Stats{
-		P50:       20,
-		P90:       30,
-		P99:       100,
-		Failures:  2,
-		Requests:  20,
-		Successes: 18,
-	}
-	stats2 := bench.Stats{
-		P50:       5,
-		P90:       33,
-		P99:       99,
-		Failures:  1,
-		Requests:  40,
-		Successes: 19,
-	}
-	got := bench.CompareStats(stats1, stats2)
-	want := bench.StatsDelta{
-		P50:       -15,
-		P90:       3,
-		P99:       -1,
-		Failures:  -1,
-		Requests:  20,
-		Successes: 1,
 	}
 	if !cmp.Equal(want, got) {
 		t.Error(cmp.Diff(want, got))

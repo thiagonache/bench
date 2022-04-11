@@ -14,7 +14,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, usage)
 		os.Exit(1)
 	}
-	delta, err := bench.CompareStatsFiles(os.Args[1], os.Args[2])
+	delta, err := bench.ReadStatsFiles(os.Args[1], os.Args[2])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

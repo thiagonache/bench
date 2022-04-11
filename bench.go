@@ -2,6 +2,7 @@ package bench
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"flag"
 	"fmt"
@@ -14,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"text/tabwriter"
 	"time"
 
 	"gonum.org/v1/plot"
@@ -407,13 +409,23 @@ type Stats struct {
 	Successes int
 }
 
-type StatsDelta struct {
-	P50       float64
-	P90       float64
-	P99       float64
-	Requests  int
-	Failures  int
-	Successes int
+type StatsCompare struct {
+	S1, S2 Stats
+}
+
+func (s StatsCompare) String() string {
+	buf := &bytes.Buffer{}
+	fmt.Fprintf(buf, "Site %s\n", s.S1.URL)
+	writer := tabwriter.NewWriter(buf, 20, 0, 0, ' ', 0)
+	fmt.Fprintln(writer, "Metric\tOld\tCurrent\tDelta\tPercentage")
+	p50Delta := s.S2.P50 - s.S1.P50
+	fmt.Fprintf(writer, "P50(ms)\t%.3f\t%.3f\t%.3f\t%.2f\n", s.S1.P50, s.S2.P50, p50Delta, p50Delta/s.S1.P50*100)
+	p90Delta := s.S2.P90 - s.S1.P90
+	fmt.Fprintf(writer, "P90(ms)\t%.3f\t%.3f\t%.3f\t%.2f\n", s.S1.P90, s.S2.P90, p90Delta, p90Delta/s.S1.P90*100)
+	p99Delta := s.S2.P99 - s.S1.P99
+	fmt.Fprintf(writer, "P99(ms)\t%.3f\t%.3f\t%.3f\t%.2f\n", s.S1.P99, s.S2.P99, p99Delta, p99Delta/s.S1.P99*100)
+	writer.Flush()
+	return buf.String()
 }
 
 type TimeRecorder struct {
@@ -429,38 +441,26 @@ func (t *TimeRecorder) RecordTime(executionTime float64) {
 
 type Option func(*Tester) error
 
-func CompareStats(stats1, stats2 Stats) StatsDelta {
-	statsDelta := StatsDelta{
-		P50:       stats2.P50 - stats1.P50,
-		P90:       stats2.P90 - stats1.P90,
-		P99:       stats2.P99 - stats1.P99,
-		Requests:  stats2.Requests - stats1.Requests,
-		Successes: stats2.Successes - stats1.Successes,
-		Failures:  stats2.Failures - stats1.Failures,
-	}
-	return statsDelta
-}
-
-func CompareStatsFiles(path1, path2 string) (StatsDelta, error) {
+func ReadStatsFiles(path1, path2 string) (StatsCompare, error) {
 	f1, err := os.Open(path1)
 	if err != nil {
-		return StatsDelta{}, err
+		return StatsCompare{}, err
 	}
 	defer f1.Close()
 	s1, err := ReadStatsFile(path1)
 	if err != nil {
-		return StatsDelta{}, err
+		return StatsCompare{}, err
 	}
 	f2, err := os.Open(path2)
 	if err != nil {
-		return StatsDelta{}, err
+		return StatsCompare{}, err
 	}
 	defer f2.Close()
 	s2, err := ReadStats(f2)
 	if err != nil {
-		return StatsDelta{}, err
+		return StatsCompare{}, err
 	}
-	return CompareStats(s1, s2), nil
+	return StatsCompare{S1: s1, S2: s2}, nil
 }
 
 func ReadStatsFile(path string) (Stats, error) {
