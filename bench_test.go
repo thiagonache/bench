@@ -552,7 +552,7 @@ func TestTrueGraphsModeGeneratesGraphs(t *testing.T) {
 	})
 }
 
-func TestDefaultGraphsModeDoesNotGenerateGraphs(t *testing.T) {
+func TestNewTester_ByDefaultDoesNotGenerateGraphs(t *testing.T) {
 	t.Parallel()
 
 	server := httptest.NewTLSServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
@@ -685,7 +685,7 @@ func TestExportStatsFlagTrueGenerateStatsFile(t *testing.T) {
 	})
 }
 
-func TestDefaultExportStatsFlagDoesNotGenerateStatsFile(t *testing.T) {
+func TestNewTester_ByDefaultExportStatsFlagDoesNotGenerateStatsFile(t *testing.T) {
 	t.Parallel()
 
 	server := httptest.NewTLSServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
