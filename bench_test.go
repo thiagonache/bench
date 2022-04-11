@@ -806,10 +806,10 @@ func TestCompareStatsFiles_ReadsTwoFilesAndComparesThem(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	stats1 := bench.Stats{
-		Failures:  2,
 		P50:       20,
 		P90:       30,
 		P99:       100,
+		Failures:  2,
 		Requests:  20,
 		Successes: 18,
 	}
@@ -820,10 +820,10 @@ func TestCompareStatsFiles_ReadsTwoFilesAndComparesThem(t *testing.T) {
 	}
 
 	stats2 := bench.Stats{
-		Failures:  1,
 		P50:       5,
 		P90:       33,
 		P99:       99,
+		Failures:  1,
 		Requests:  40,
 		Successes: 19,
 	}
@@ -837,10 +837,10 @@ func TestCompareStatsFiles_ReadsTwoFilesAndComparesThem(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := bench.StatsDelta{
-		Failures:  -1,
 		P50:       -15,
 		P90:       3,
 		P99:       -1,
+		Failures:  -1,
 		Requests:  20,
 		Successes: 1,
 	}
@@ -871,10 +871,10 @@ func TestReadStats_PopulatesCorrectStats(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := bench.Stats{
-		Failures:  1,
 		P50:       100.123,
 		P90:       150.000,
 		P99:       198.465,
+		Failures:  1,
 		Requests:  20,
 		Successes: 19,
 		URL:       "http://fake.url",
@@ -891,10 +891,10 @@ func TestReadStatsFile_PopulatesCorrectStatsFile(t *testing.T) {
 	dir := t.TempDir()
 	path := dir + "/stats.txt"
 	err := bench.WriteStatsFile(path, bench.Stats{
-		Failures:  2,
 		P50:       20,
 		P90:       30,
 		P99:       100,
+		Failures:  2,
 		Requests:  20,
 		Successes: 18,
 	})
@@ -902,10 +902,10 @@ func TestReadStatsFile_PopulatesCorrectStatsFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := bench.Stats{
-		Failures:  2,
 		P50:       20,
 		P90:       30,
 		P99:       100,
+		Failures:  2,
 		Requests:  20,
 		Successes: 18,
 	}
@@ -920,27 +920,27 @@ func TestReadStatsFile_PopulatesCorrectStatsFile(t *testing.T) {
 func TestCompareStats_ReturnsCorrectStatsDelta(t *testing.T) {
 	t.Parallel()
 	stats1 := bench.Stats{
-		Failures:  2,
 		P50:       20,
 		P90:       30,
 		P99:       100,
+		Failures:  2,
 		Requests:  20,
 		Successes: 18,
 	}
 	stats2 := bench.Stats{
-		Failures:  1,
 		P50:       5,
 		P90:       33,
 		P99:       99,
+		Failures:  1,
 		Requests:  40,
 		Successes: 19,
 	}
 	got := bench.CompareStats(stats1, stats2)
 	want := bench.StatsDelta{
-		Failures:  -1,
 		P50:       -15,
 		P90:       3,
 		P99:       -1,
+		Failures:  -1,
 		Requests:  20,
 		Successes: 1,
 	}
@@ -952,13 +952,13 @@ func TestCompareStats_ReturnsCorrectStatsDelta(t *testing.T) {
 func TestWriteStats_PopulatesCorrectStats(t *testing.T) {
 	t.Parallel()
 	stats := bench.Stats{
-		Failures:  2,
+		URL:       "http://fake.url",
 		P50:       100.123,
 		P90:       150.000,
 		P99:       198.465,
+		Failures:  2,
 		Requests:  20,
 		Successes: 18,
-		URL:       "http://fake.url",
 	}
 	output := &bytes.Buffer{}
 	err := bench.WriteStats(output, stats)
