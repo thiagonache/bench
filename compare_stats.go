@@ -1,9 +1,12 @@
 package bench
 
 import (
+	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"os"
+	"text/tabwriter"
 )
 
 var ErrEmptyStats = errors.New("stats cannot be empty")
@@ -54,17 +57,17 @@ func WithCMPStderr(w io.Writer) CMPOption {
 
 type CMPOption func(*CompareStats) error
 
-// func (s CompareStats) String() string {
-// 	buf := &bytes.Buffer{}
-// 	fmt.Fprintf(buf, "Site %s\n", s.S1.URL)
-// 	writer := tabwriter.NewWriter(buf, 20, 0, 0, ' ', 0)
-// 	fmt.Fprintln(writer, "Metric\tOld\tCurrent\tDelta\tPercentage")
-// 	p50Delta := s.S2.P50 - s.S1.P50
-// 	fmt.Fprintf(writer, "P50(ms)\t%.3f\t%.3f\t%.3f\t%.2f\n", s.S1.P50, s.S2.P50, p50Delta, p50Delta/s.S1.P50*100)
-// 	p90Delta := s.S2.P90 - s.S1.P90
-// 	fmt.Fprintf(writer, "P90(ms)\t%.3f\t%.3f\t%.3f\t%.2f\n", s.S1.P90, s.S2.P90, p90Delta, p90Delta/s.S1.P90*100)
-// 	p99Delta := s.S2.P99 - s.S1.P99
-// 	fmt.Fprintf(writer, "P99(ms)\t%.3f\t%.3f\t%.3f\t%.2f\n", s.S1.P99, s.S2.P99, p99Delta, p99Delta/s.S1.P99*100)
-// 	writer.Flush()
-// 	return buf.String()
-// }
+func (s CompareStats) String() string {
+	buf := &bytes.Buffer{}
+	fmt.Fprintf(buf, "Site %s\n", s.S1.URL)
+	writer := tabwriter.NewWriter(buf, 20, 0, 0, ' ', 0)
+	fmt.Fprintln(writer, "Metric\tOld\tCurrent\tDelta\tPercentage")
+	p50Delta := s.S2.P50 - s.S1.P50
+	fmt.Fprintf(writer, "P50(ms)\t%.3f\t%.3f\t%.3f\t%.2f\n", s.S1.P50, s.S2.P50, p50Delta, p50Delta/s.S1.P50*100)
+	p90Delta := s.S2.P90 - s.S1.P90
+	fmt.Fprintf(writer, "P90(ms)\t%.3f\t%.3f\t%.3f\t%.2f\n", s.S1.P90, s.S2.P90, p90Delta, p90Delta/s.S1.P90*100)
+	p99Delta := s.S2.P99 - s.S1.P99
+	fmt.Fprintf(writer, "P99(ms)\t%.3f\t%.3f\t%.3f\t%.2f\n", s.S1.P99, s.S2.P99, p99Delta, p99Delta/s.S1.P99*100)
+	writer.Flush()
+	return buf.String()
+}
