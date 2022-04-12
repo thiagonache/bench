@@ -302,7 +302,7 @@ func (t *Tester) Run() error {
 		}
 	}
 	if t.ExportStats() {
-		file, err := os.Create(fmt.Sprintf("%s/%s", t.outputPath, "statsfile.txt"))
+		file, err := os.Create(fmt.Sprintf("%s/%s", t.OutputPath(), "statsfile.txt"))
 		if err != nil {
 			return err
 		}
@@ -312,7 +312,7 @@ func (t *Tester) Run() error {
 			return err
 		}
 	}
-	t.LogFStdOut("The benchmark of %s URL took %v\n", t.URL, t.endAt.Round(time.Millisecond))
+	t.LogFStdOut("The benchmark of %s URL took %dms\n", t.URL, t.EndAt())
 	t.LogFStdOut("Requests: %d Success: %d Failures: %d\n", t.stats.Requests, t.stats.Successes, t.stats.Failures)
 	t.LogFStdOut("P50: %.3fms P90: %.3fms P99: %.3fms\n", t.stats.P50, t.stats.P90, t.stats.P99)
 	return nil
@@ -329,7 +329,7 @@ func (t Tester) Boxplot() error {
 		return err
 	}
 	p.Add(box)
-	err = p.Save(600, 400, fmt.Sprintf("%s/%s", t.outputPath, "boxplot.png"))
+	err = p.Save(600, 400, fmt.Sprintf("%s/%s", t.OutputPath(), "boxplot.png"))
 	if err != nil {
 		return err
 	}
@@ -346,7 +346,7 @@ func (t Tester) Histogram() error {
 		return err
 	}
 	p.Add(hist)
-	err = p.Save(600, 400, fmt.Sprintf("%s/%s", t.outputPath, "histogram.png"))
+	err = p.Save(600, 400, fmt.Sprintf("%s/%s", t.OutputPath(), "histogram.png"))
 	if err != nil {
 		return err
 	}
