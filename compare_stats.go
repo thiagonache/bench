@@ -61,7 +61,7 @@ func (s CompareStats) String() string {
 	buf := &bytes.Buffer{}
 	fmt.Fprintf(buf, "Site %s\n", s.S1.URL)
 	writer := tabwriter.NewWriter(buf, 20, 0, 0, ' ', 0)
-	fmt.Fprintln(writer, "Metric\tOld\tCurrent\tDelta\tPercentage")
+	fmt.Fprintln(writer, "Metric\tOld\tNew\tDelta\tPercentage")
 	p50Delta := s.S2.P50 - s.S1.P50
 	fmt.Fprintf(writer, "P50(ms)\t%.3f\t%.3f\t%.3f\t%.2f\n", s.S1.P50, s.S2.P50, p50Delta, p50Delta/s.S1.P50*100)
 	p90Delta := s.S2.P90 - s.S1.P90
