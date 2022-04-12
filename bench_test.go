@@ -934,3 +934,31 @@ func TestWriteStats_PopulatesCorrectStats(t *testing.T) {
 		t.Error(cmp.Diff(want, got))
 	}
 }
+
+func TestCompareStateStringerPrintsExpectedMessage(t *testing.T) {
+	t.Parallel()
+	cs := bench.CompareStats{
+		S1: bench.Stats{
+			URL: "http://fake.url",
+			P50: 100,
+			P90: 110,
+			P99: 120,
+		},
+		S2: bench.Stats{
+			URL: "http://fake.url",
+			P50: 99,
+			P90: 100,
+			P99: 101,
+		},
+	}
+	want := `Site http://fake.url
+Metric              Old                 New                 Delta               Percentage
+P50(ms)             100.000             99.000              -1.000              -1.00
+P90(ms)             110.000             100.000             -10.000             -9.09
+P99(ms)             120.000             101.000             -19.000             -15.83
+`
+	got := cs.String()
+	if !cmp.Equal(want, got) {
+		t.Fatal(cmp.Diff(want, got))
+	}
+}

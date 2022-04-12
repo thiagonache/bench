@@ -2,6 +2,7 @@ package bench
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"flag"
 	"fmt"
@@ -14,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"text/tabwriter"
 	"time"
 
 	"gonum.org/v1/plot"
@@ -431,6 +433,25 @@ func (t *TimeRecorder) RecordTime(executionTime float64) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	t.ExecutionsTime = append(t.ExecutionsTime, executionTime)
+}
+
+type CompareStats struct {
+	S1, S2 Stats
+}
+
+func (cs CompareStats) String() string {
+	buf := &bytes.Buffer{}
+	fmt.Fprintf(buf, "Site %s\n", cs.S1.URL)
+	writer := tabwriter.NewWriter(buf, 20, 0, 0, ' ', 0)
+	fmt.Fprintln(writer, "Metric\tOld\tNew\tDelta\tPercentage")
+	p50Delta := cs.S2.P50 - cs.S1.P50
+	fmt.Fprintf(writer, "P50(ms)\t%.3f\t%.3f\t%.3f\t%.2f\n", cs.S1.P50, cs.S2.P50, p50Delta, p50Delta/cs.S1.P50*100)
+	p90Delta := cs.S2.P90 - cs.S1.P90
+	fmt.Fprintf(writer, "P90(ms)\t%.3f\t%.3f\t%.3f\t%.2f\n", cs.S1.P90, cs.S2.P90, p90Delta, p90Delta/cs.S1.P90*100)
+	p99Delta := cs.S2.P99 - cs.S1.P99
+	fmt.Fprintf(writer, "P99(ms)\t%.3f\t%.3f\t%.3f\t%.2f\n", cs.S1.P99, cs.S2.P99, p99Delta, p99Delta/cs.S1.P99*100)
+	writer.Flush()
+	return buf.String()
 }
 
 type Option func(*Tester) error
