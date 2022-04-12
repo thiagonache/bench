@@ -498,7 +498,7 @@ func TestFromArgs_ByDefaultSetsNoGraphsMode(t *testing.T) {
 	}
 }
 
-func TestTrueGraphsModeGeneratesGraphs(t *testing.T) {
+func TestNewTester_WithTrueGraphsModeGeneratesGraphs(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewTLSServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(rw, "HelloWorld")
