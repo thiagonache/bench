@@ -2,7 +2,6 @@ package bench
 
 import (
 	"bufio"
-	"bytes"
 	"errors"
 	"flag"
 	"fmt"
@@ -15,7 +14,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"text/tabwriter"
 	"time"
 
 	"gonum.org/v1/plot"
@@ -41,7 +39,7 @@ var (
 )
 
 type Tester struct {
-	Concurrency    int
+	concurrency    int
 	client         *http.Client
 	EndAt          time.Duration
 	ExportStats    bool
@@ -53,7 +51,7 @@ type Tester struct {
 	URL            string
 	userAgent      string
 	wg             *sync.WaitGroup
-	Work           chan struct{}
+	work           chan struct{}
 
 	mu           *sync.Mutex
 	stats        Stats
@@ -63,7 +61,7 @@ type Tester struct {
 func NewTester(opts ...Option) (*Tester, error) {
 	tester := &Tester{
 		client:      DefaultHTTPClient,
-		Concurrency: DefaultConcurrency,
+		concurrency: DefaultConcurrency,
 		OutputPath:  DefaultOutputPath,
 		requests:    DefaultNumRequests,
 		stats:       Stats{},
@@ -96,7 +94,7 @@ func NewTester(opts ...Option) (*Tester, error) {
 	if tester.requests < 1 {
 		return nil, fmt.Errorf("%d is invalid number of requests", tester.requests)
 	}
-	tester.Work = make(chan struct{})
+	tester.work = make(chan struct{})
 	return tester, nil
 }
 
@@ -117,7 +115,7 @@ func FromArgs(args []string) Option {
 		t.URL = *url
 		t.requests = *reqs
 		t.Graphs = *graphs
-		t.Concurrency = *concurrency
+		t.concurrency = *concurrency
 		t.ExportStats = *exportStats
 		return nil
 	}
@@ -166,7 +164,7 @@ func WithStderr(w io.Writer) Option {
 
 func WithConcurrency(c int) Option {
 	return func(lg *Tester) error {
-		lg.Concurrency = c
+		lg.concurrency = c
 		return nil
 	}
 }
@@ -199,6 +197,10 @@ func WithExportStats(exportStats bool) Option {
 	}
 }
 
+func (t Tester) Concurrency() int {
+	return t.concurrency
+}
+
 func (t Tester) HTTPUserAgent() string {
 	return t.userAgent
 }
@@ -220,7 +222,7 @@ func (t Tester) Requests() int {
 }
 
 func (t *Tester) DoRequest() {
-	for range t.Work {
+	for range t.work {
 		t.RecordRequest()
 		req, err := http.NewRequest(http.MethodGet, t.URL, nil)
 		if err != nil {
@@ -249,16 +251,16 @@ func (t *Tester) DoRequest() {
 }
 
 func (t *Tester) Run() error {
-	t.wg.Add(t.Concurrency)
+	t.wg.Add(t.concurrency)
 	go func() {
 		for x := 0; x < t.requests; x++ {
-			t.Work <- struct{}{}
+			t.work <- struct{}{}
 		}
-		close(t.Work)
+		close(t.work)
 	}()
 	t.startAt = time.Now()
 	go func() {
-		for x := 0; x < t.Concurrency; x++ {
+		for x := 0; x < t.concurrency; x++ {
 			go func() {
 				t.DoRequest()
 				t.wg.Done()
@@ -404,25 +406,6 @@ type Stats struct {
 	Successes int
 }
 
-type StatsCompare struct {
-	S1, S2 Stats
-}
-
-func (s StatsCompare) String() string {
-	buf := &bytes.Buffer{}
-	fmt.Fprintf(buf, "Site %s\n", s.S1.URL)
-	writer := tabwriter.NewWriter(buf, 20, 0, 0, ' ', 0)
-	fmt.Fprintln(writer, "Metric\tOld\tCurrent\tDelta\tPercentage")
-	p50Delta := s.S2.P50 - s.S1.P50
-	fmt.Fprintf(writer, "P50(ms)\t%.3f\t%.3f\t%.3f\t%.2f\n", s.S1.P50, s.S2.P50, p50Delta, p50Delta/s.S1.P50*100)
-	p90Delta := s.S2.P90 - s.S1.P90
-	fmt.Fprintf(writer, "P90(ms)\t%.3f\t%.3f\t%.3f\t%.2f\n", s.S1.P90, s.S2.P90, p90Delta, p90Delta/s.S1.P90*100)
-	p99Delta := s.S2.P99 - s.S1.P99
-	fmt.Fprintf(writer, "P99(ms)\t%.3f\t%.3f\t%.3f\t%.2f\n", s.S1.P99, s.S2.P99, p99Delta, p99Delta/s.S1.P99*100)
-	writer.Flush()
-	return buf.String()
-}
-
 type TimeRecorder struct {
 	mu             *sync.Mutex
 	ExecutionsTime []float64
@@ -436,26 +419,26 @@ func (t *TimeRecorder) RecordTime(executionTime float64) {
 
 type Option func(*Tester) error
 
-func ReadStatsFiles(path1, path2 string) (StatsCompare, error) {
+func ReadStatsFiles(path1, path2 string) (CompareStats, error) {
 	f1, err := os.Open(path1)
 	if err != nil {
-		return StatsCompare{}, err
+		return CompareStats{}, err
 	}
 	defer f1.Close()
 	s1, err := ReadStatsFile(path1)
 	if err != nil {
-		return StatsCompare{}, err
+		return CompareStats{}, err
 	}
 	f2, err := os.Open(path2)
 	if err != nil {
-		return StatsCompare{}, err
+		return CompareStats{}, err
 	}
 	defer f2.Close()
 	s2, err := ReadStats(f2)
 	if err != nil {
-		return StatsCompare{}, err
+		return CompareStats{}, err
 	}
-	return StatsCompare{S1: s1, S2: s2}, nil
+	return CompareStats{S1: s1, S2: s2}, nil
 }
 
 func ReadStatsFile(path string) (Stats, error) {

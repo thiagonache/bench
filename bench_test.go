@@ -62,21 +62,6 @@ func TestNewTester_ByDefaultIsSetForDefaultNumRequests(t *testing.T) {
 	}
 }
 
-func TestNewTester_WorkChannelByDefaultIsSetAsUnbuffered(t *testing.T) {
-	t.Parallel()
-	tester, err := bench.NewTester(
-		bench.WithURL("http://fake.url"),
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	want := 0
-	got := len(tester.Work)
-	if want != got {
-		t.Errorf("want tester work channel is unbuffered, got %d", got)
-	}
-}
-
 func TestNewTester_ByDefaultIsSetForDefaultOutputPath(t *testing.T) {
 	t.Parallel()
 	tester, err := bench.NewTester(
@@ -101,7 +86,7 @@ func TestNewTester_ByDefaultIsSetForDefaultConcurrency(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := bench.DefaultConcurrency
-	got := tester.Concurrency
+	got := tester.Concurrency()
 	if want != got {
 		t.Errorf("want tester concurrency for default concurrency (%d), got %d", want, got)
 	}
@@ -116,7 +101,7 @@ func TestNewTester_WithNConcurrentSetsNConcurrenty(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	got := tester.Concurrency
+	got := tester.Concurrency()
 	if got != 10 {
 		t.Errorf("want tester configured for 10 concurrent requests, got %d", got)
 	}
@@ -133,7 +118,7 @@ func TestFromArgs_CFlagSetsNConcurrency(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := 10
-	got := tester.Concurrency
+	got := tester.Concurrency()
 	if want != got {
 		t.Errorf("reqs: want %d, got %d", want, got)
 	}
@@ -836,7 +821,7 @@ func TestReadStatsFiles_ReadsTwoFilesAndReturnsCorrectStatsCompares(t *testing.T
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := bench.StatsCompare{
+	want := bench.CompareStats{
 		S1: bench.Stats{
 			P50:       20,
 			P90:       30,
