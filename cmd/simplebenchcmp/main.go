@@ -7,7 +7,7 @@ import (
 	"github.com/thiagonache/bench"
 )
 
-var usage = "Please do not press this button again"
+var usage = fmt.Sprintf("Usage: %s statsfile1.txt statsfile2.txt", os.Args[0])
 
 func main() {
 	if len(os.Args) != 3 {

@@ -113,17 +113,12 @@ func FromArgs(args []string) Option {
 			fs.Usage()
 			return ErrNoArgs
 		}
-		switch args[0] {
-		case "run":
-			fs.Parse(args[1:])
-			t.URL = *url
-			t.requests = *reqs
-			t.Graphs = *graphs
-			t.Concurrency = *concurrency
-			t.ExportStats = *exportStats
-		default:
-			return errors.New("expected run or cmp subcommands")
-		}
+		fs.Parse(args)
+		t.URL = *url
+		t.requests = *reqs
+		t.Graphs = *graphs
+		t.Concurrency = *concurrency
+		t.ExportStats = *exportStats
 		return nil
 	}
 }
@@ -297,7 +292,7 @@ func (t *Tester) Run() error {
 			return err
 		}
 	}
-	t.LogFStdOut("The benchmark of %s site took %v\n", t.URL, t.EndAt.Round(time.Millisecond))
+	t.LogFStdOut("The benchmark of %s URL took %v\n", t.URL, t.EndAt.Round(time.Millisecond))
 	t.LogFStdOut("Requests: %d Success: %d Failures: %d\n", t.stats.Requests, t.stats.Successes, t.stats.Failures)
 	t.LogFStdOut("P50: %.3fms P90: %.3fms P99: %.3fms\n", t.stats.P50, t.stats.P90, t.stats.P99)
 	return nil
