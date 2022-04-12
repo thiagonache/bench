@@ -71,7 +71,7 @@ func TestNewTester_ByDefaultIsSetForDefaultOutputPath(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := bench.DefaultOutputPath
-	got := tester.OutputPath
+	got := tester.OutputPath()
 	if want != got {
 		t.Errorf("want tester output path for default output path (%q), got %q", want, got)
 	}
@@ -134,7 +134,7 @@ func TestNewTester_WithOutputPathSetsOutputPath(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := "/tmp"
-	got := tester.OutputPath
+	got := tester.OutputPath()
 	if want != got {
 		t.Errorf("want tester output path configured for /tmp, got %q", got)
 	}
@@ -292,7 +292,7 @@ func TestRunReturnsValidStatsAndTime(t *testing.T) {
 	if stats.Requests != stats.Successes+stats.Failures {
 		t.Error("want total requests to be the sum of successes + failures")
 	}
-	if tester.EndAt.Milliseconds() == 0 {
+	if tester.EndAt() == 0 {
 		t.Fatal("zero milliseconds is an invalid time")
 	}
 }
@@ -449,7 +449,7 @@ func TestNewTester_WithGraphsSetsGraphsMode(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !tester.Graphs {
+	if !tester.Graphs() {
 		t.Error("want graphs to be true")
 	}
 }
@@ -463,7 +463,7 @@ func TestNewTester_ByDefaultSetsNoGraphsMode(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if tester.Graphs {
+	if tester.Graphs() {
 		t.Error("want graphs to be false")
 	}
 }
@@ -478,7 +478,7 @@ func TestFromArgs_GFlagSetsGraphsMode(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !tester.Graphs {
+	if !tester.Graphs() {
 		t.Error("want graphs to be true")
 	}
 }
@@ -493,7 +493,7 @@ func TestFromArgs_ByDefaultSetsNoGraphsMode(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if tester.Graphs {
+	if tester.Graphs() {
 		t.Error("want graphs to be false")
 	}
 }
@@ -510,29 +510,29 @@ func TestTrueGraphsModeGeneratesGraphs(t *testing.T) {
 		bench.WithStdout(io.Discard),
 		bench.WithStderr(io.Discard),
 		bench.WithOutputPath(tempDir),
+		bench.WithGraphs(true),
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	tester.Graphs = true
 	err = tester.Run()
 	if err != nil {
 		t.Fatal(err)
 	}
-	filePath := fmt.Sprintf("%s/%s", tester.OutputPath, "boxplot.png")
+	filePath := fmt.Sprintf("%s/%s", tester.OutputPath(), "boxplot.png")
 	_, err = os.Stat(filePath)
 	if err != nil {
 		t.Errorf("want file %q to exist", filePath)
 	}
-	filePath = fmt.Sprintf("%s/%s", tester.OutputPath, "histogram.png")
+	filePath = fmt.Sprintf("%s/%s", tester.OutputPath(), "histogram.png")
 	_, err = os.Stat(filePath)
 	if err != nil {
 		t.Errorf("want file %q to exist", filePath)
 	}
 	t.Cleanup(func() {
-		err := os.RemoveAll(tester.OutputPath)
+		err := os.RemoveAll(tester.OutputPath())
 		if err != nil {
-			fmt.Printf("cannot delete %s\n", tester.OutputPath)
+			fmt.Printf("cannot delete %s\n", tester.OutputPath())
 		}
 	})
 }
@@ -558,20 +558,20 @@ func TestNewTester_ByDefaultDoesNotGenerateGraphs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	filePath := fmt.Sprintf("%s/%s", tester.OutputPath, "boxplot.png")
+	filePath := fmt.Sprintf("%s/%s", tester.OutputPath(), "boxplot.png")
 	_, err = os.Stat(filePath)
 	if err == nil {
 		t.Errorf("want file %q to not exist. Error found: %v", filePath, err)
 	}
-	filePath = fmt.Sprintf("%s/%s", tester.OutputPath, "histogram.png")
+	filePath = fmt.Sprintf("%s/%s", tester.OutputPath(), "histogram.png")
 	_, err = os.Stat(filePath)
 	if err == nil {
 		t.Errorf("want file %q to not exist. Error found: %v", filePath, err)
 	}
 	t.Cleanup(func() {
-		err := os.RemoveAll(tester.OutputPath)
+		err := os.RemoveAll(tester.OutputPath())
 		if err != nil {
-			fmt.Printf("cannot delete %s\n", tester.OutputPath)
+			fmt.Printf("cannot delete %s\n", tester.OutputPath())
 		}
 	})
 }
@@ -586,7 +586,7 @@ func TestNewTester_WithStatsSetsExportStatsMode(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !tester.ExportStats {
+	if !tester.ExportStats() {
 		t.Error("want ExportStats to be true")
 	}
 }
@@ -600,7 +600,7 @@ func TestNewTester_ByDefaultSetsNoExportStatsMode(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if tester.ExportStats {
+	if tester.ExportStats() {
 		t.Error("want ExportStats to be false")
 	}
 }
@@ -615,7 +615,7 @@ func TestFromArgs_WithSFlagEnablesExportStatsMode(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !tester.ExportStats {
+	if !tester.ExportStats() {
 		t.Error("want ExportStats to be true")
 	}
 }
@@ -630,7 +630,7 @@ func TestFromArgs_WithoutSFlagDisablesExportStatsMode(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if tester.ExportStats {
+	if tester.ExportStats() {
 		t.Error("want ExportStats to be false")
 	}
 }
@@ -647,25 +647,25 @@ func TestExportStatsFlagTrueGenerateStatsFile(t *testing.T) {
 		bench.WithStdout(io.Discard),
 		bench.WithStderr(io.Discard),
 		bench.WithOutputPath(tempDir),
+		bench.WithExportStats(true),
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	tester.ExportStats = true
 	err = tester.Run()
 	if err != nil {
 		t.Fatal(err)
 	}
-	filePath := fmt.Sprintf("%s/%s", tester.OutputPath, "statsfile.txt")
+	filePath := fmt.Sprintf("%s/%s", tester.OutputPath(), "statsfile.txt")
 	_, err = os.Stat(filePath)
 	if err != nil {
 		t.Errorf("want file %q to exist", filePath)
 	}
 
 	t.Cleanup(func() {
-		err := os.RemoveAll(tester.OutputPath)
+		err := os.RemoveAll(tester.OutputPath())
 		if err != nil {
-			fmt.Printf("cannot delete %s\n", tester.OutputPath)
+			fmt.Printf("cannot delete %s\n", tester.OutputPath())
 		}
 	})
 }
@@ -691,15 +691,15 @@ func TestNewTester_ByDefaultDoesNotGenerateStatsFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	filePath := fmt.Sprintf("%s/%s", tester.OutputPath, "statsfile.txt")
+	filePath := fmt.Sprintf("%s/%s", tester.OutputPath(), "statsfile.txt")
 	_, err = os.Stat(filePath)
 	if err == nil {
 		t.Errorf("want file %q to not exist. Error found: %v", filePath, err)
 	}
 	t.Cleanup(func() {
-		err := os.RemoveAll(tester.OutputPath)
+		err := os.RemoveAll(tester.OutputPath())
 		if err != nil {
-			fmt.Printf("cannot delete %s\n", tester.OutputPath)
+			fmt.Printf("cannot delete %s\n", tester.OutputPath())
 		}
 	})
 }

@@ -41,10 +41,10 @@ var (
 type Tester struct {
 	concurrency    int
 	client         *http.Client
-	EndAt          time.Duration
-	ExportStats    bool
-	Graphs         bool
-	OutputPath     string
+	endAt          time.Duration
+	exportStats    bool
+	graphs         bool
+	outputPath     string
 	requests       int
 	startAt        time.Time
 	stdout, stderr io.Writer
@@ -62,7 +62,7 @@ func NewTester(opts ...Option) (*Tester, error) {
 	tester := &Tester{
 		client:      DefaultHTTPClient,
 		concurrency: DefaultConcurrency,
-		OutputPath:  DefaultOutputPath,
+		outputPath:  DefaultOutputPath,
 		requests:    DefaultNumRequests,
 		stats:       Stats{},
 		stderr:      os.Stderr,
@@ -114,9 +114,9 @@ func FromArgs(args []string) Option {
 		fs.Parse(args)
 		t.URL = *url
 		t.requests = *reqs
-		t.Graphs = *graphs
+		t.graphs = *graphs
 		t.concurrency = *concurrency
-		t.ExportStats = *exportStats
+		t.exportStats = *exportStats
 		return nil
 	}
 }
@@ -178,21 +178,21 @@ func WithURL(URL string) Option {
 
 func WithOutputPath(outputPath string) Option {
 	return func(t *Tester) error {
-		t.OutputPath = outputPath
+		t.outputPath = outputPath
 		return nil
 	}
 }
 
 func WithGraphs(graphs bool) Option {
 	return func(t *Tester) error {
-		t.Graphs = graphs
+		t.graphs = graphs
 		return nil
 	}
 }
 
 func WithExportStats(exportStats bool) Option {
 	return func(t *Tester) error {
-		t.ExportStats = exportStats
+		t.exportStats = exportStats
 		return nil
 	}
 }
@@ -201,12 +201,28 @@ func (t Tester) Concurrency() int {
 	return t.concurrency
 }
 
+func (t Tester) EndAt() int64 {
+	return t.endAt.Milliseconds()
+}
+
+func (t Tester) ExportStats() bool {
+	return t.exportStats
+}
+
+func (t Tester) Graphs() bool {
+	return t.graphs
+}
+
 func (t Tester) HTTPUserAgent() string {
 	return t.userAgent
 }
 
 func (t Tester) HTTPClient() *http.Client {
 	return t.client
+}
+
+func (t Tester) OutputPath() string {
+	return t.outputPath
 }
 
 func (t Tester) StartTime() time.Time {
@@ -268,12 +284,12 @@ func (t *Tester) Run() error {
 		}
 	}()
 	t.wg.Wait()
-	t.EndAt = time.Since(t.startAt)
+	t.endAt = time.Since(t.startAt)
 	err := t.SetMetrics()
 	if err != nil {
 		return err
 	}
-	if t.Graphs {
+	if t.graphs {
 		err = t.Boxplot()
 		if err != nil {
 			return err
@@ -283,8 +299,8 @@ func (t *Tester) Run() error {
 			return err
 		}
 	}
-	if t.ExportStats {
-		file, err := os.Create(fmt.Sprintf("%s/%s", t.OutputPath, "statsfile.txt"))
+	if t.exportStats {
+		file, err := os.Create(fmt.Sprintf("%s/%s", t.outputPath, "statsfile.txt"))
 		if err != nil {
 			return err
 		}
@@ -294,7 +310,7 @@ func (t *Tester) Run() error {
 			return err
 		}
 	}
-	t.LogFStdOut("The benchmark of %s URL took %v\n", t.URL, t.EndAt.Round(time.Millisecond))
+	t.LogFStdOut("The benchmark of %s URL took %v\n", t.URL, t.endAt.Round(time.Millisecond))
 	t.LogFStdOut("Requests: %d Success: %d Failures: %d\n", t.stats.Requests, t.stats.Successes, t.stats.Failures)
 	t.LogFStdOut("P50: %.3fms P90: %.3fms P99: %.3fms\n", t.stats.P50, t.stats.P90, t.stats.P99)
 	return nil
@@ -311,7 +327,7 @@ func (t Tester) Boxplot() error {
 		return err
 	}
 	p.Add(box)
-	err = p.Save(600, 400, fmt.Sprintf("%s/%s", t.OutputPath, "boxplot.png"))
+	err = p.Save(600, 400, fmt.Sprintf("%s/%s", t.outputPath, "boxplot.png"))
 	if err != nil {
 		return err
 	}
@@ -328,7 +344,7 @@ func (t Tester) Histogram() error {
 		return err
 	}
 	p.Add(hist)
-	err = p.Save(600, 400, fmt.Sprintf("%s/%s", t.OutputPath, "histogram.png"))
+	err = p.Save(600, 400, fmt.Sprintf("%s/%s", t.outputPath, "histogram.png"))
 	if err != nil {
 		return err
 	}
