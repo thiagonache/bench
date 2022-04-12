@@ -852,8 +852,8 @@ func TestReadStatsFiles_ReadsTwoFilesAndReturnsCorrectStatsCompares(t *testing.T
 
 func TestCompareStatsFiles_ErrorsIfOneOrBothFilesUnreadable(t *testing.T) {
 	_, err := bench.ReadStatsFiles("bogus", "even more bogus")
-	if err == nil {
-		t.Error("no error")
+	if !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("want error os.ErrNotExist got %v", err)
 	}
 }
 
