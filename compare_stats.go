@@ -9,11 +9,11 @@ import (
 var ErrEmptyStats = errors.New("stats cannot be empty")
 
 type CompareStats struct {
-	S1, S2 Stats
-	Stdout io.Writer
+	S1, S2         Stats
+	Stdout, Stderr io.Writer
 }
 
-func NewCompareStats(s1, s2 Stats) (*CompareStats, error) {
+func NewCompareStats(s1, s2 Stats, opts ...CMPOption) (*CompareStats, error) {
 	if s1 == (Stats{}) || s2 == (Stats{}) {
 		return &CompareStats{}, ErrEmptyStats
 	}
@@ -21,9 +21,38 @@ func NewCompareStats(s1, s2 Stats) (*CompareStats, error) {
 		S1:     s1,
 		S2:     s2,
 		Stdout: os.Stdout,
+		Stderr: os.Stderr,
+	}
+	for _, o := range opts {
+		err := o(cs)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return cs, nil
 }
+
+func WithCMPStdout(w io.Writer) CMPOption {
+	return func(cs *CompareStats) error {
+		if w == nil {
+			return ErrValueCannotBeNil
+		}
+		cs.Stdout = w
+		return nil
+	}
+}
+
+func WithCMPStderr(w io.Writer) CMPOption {
+	return func(cs *CompareStats) error {
+		if w == nil {
+			return ErrValueCannotBeNil
+		}
+		cs.Stderr = w
+		return nil
+	}
+}
+
+type CMPOption func(*CompareStats) error
 
 // func (s CompareStats) String() string {
 // 	buf := &bytes.Buffer{}

@@ -58,3 +58,27 @@ func TestNewCompareStats_ErrorsIfS2IsEmpty(t *testing.T) {
 		t.Fatalf("want error ErrEmptyStats got %v", err)
 	}
 }
+
+func TestNewCompareStats_WithNilStdoutReturnsErrorValueCannotBeNil(t *testing.T) {
+	t.Parallel()
+	_, err := bench.NewCompareStats(
+		bench.Stats{P99: 99},
+		bench.Stats{P99: 98},
+		bench.WithCMPStdout(nil),
+	)
+	if !errors.Is(err, bench.ErrValueCannotBeNil) {
+		t.Errorf("want ErrValueCannotBeNil error if stdout is nil, got %v", err)
+	}
+}
+
+func TestNewCompareStats_WithNilStderrReturnsErrorValueCannotBeNil(t *testing.T) {
+	t.Parallel()
+	_, err := bench.NewCompareStats(
+		bench.Stats{P99: 99},
+		bench.Stats{P99: 98},
+		bench.WithCMPStderr(nil),
+	)
+	if !errors.Is(err, bench.ErrValueCannotBeNil) {
+		t.Errorf("want ErrValueCannotBeNil error if stderr is nil, got %v", err)
+	}
+}
