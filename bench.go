@@ -269,16 +269,16 @@ func (t *Tester) DoRequest() {
 }
 
 func (t *Tester) Run() error {
-	t.wg.Add(t.concurrency)
+	t.wg.Add(t.Concurrency())
 	go func() {
-		for x := 0; x < t.requests; x++ {
+		for x := 0; x < t.Requests(); x++ {
 			t.work <- struct{}{}
 		}
 		close(t.work)
 	}()
 	t.startAt = time.Now()
 	go func() {
-		for x := 0; x < t.concurrency; x++ {
+		for x := 0; x < t.Concurrency(); x++ {
 			go func() {
 				t.DoRequest()
 				t.wg.Done()
@@ -291,7 +291,7 @@ func (t *Tester) Run() error {
 	if err != nil {
 		return err
 	}
-	if t.graphs {
+	if t.Graphs() {
 		err = t.Boxplot()
 		if err != nil {
 			return err
@@ -301,7 +301,7 @@ func (t *Tester) Run() error {
 			return err
 		}
 	}
-	if t.exportStats {
+	if t.ExportStats() {
 		file, err := os.Create(fmt.Sprintf("%s/%s", t.outputPath, "statsfile.txt"))
 		if err != nil {
 			return err
