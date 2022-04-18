@@ -35,10 +35,11 @@ var (
 		Timeout: 5 * time.Second,
 	}
 	ErrNoArgs           = errors.New("no arguments")
+	ErrCMPNoArgs        = errors.New("no stats file to compare. Please, specify two files")
 	ErrNoURL            = errors.New("no URL to test")
 	ErrTimeNotRecorded  = errors.New("no execution time recorded")
 	ErrValueCannotBeNil = errors.New("value cannot be nil")
-	ErrUnkownSubCommand = errors.New("unknown subcommand. Valid commands are run or cmp")
+	ErrUnkownSubCommand = errors.New("unknown subcommand. Please, specify run or cmp")
 )
 
 type Tester struct {
@@ -581,7 +582,8 @@ func RunCLI(args []string) error {
 		}
 		tester.Run()
 	case "cmp":
-		if err := CMPRun(args[1:]); err != nil {
+		err := CMPRun(args[1:])
+		if err != nil {
 			return err
 		}
 	default:
@@ -592,8 +594,7 @@ func RunCLI(args []string) error {
 
 func CMPRun(args []string) error {
 	if len(args) < 2 {
-		fmt.Println("Usage: ", os.Args[0], "cmp statsfile1.txt statsfile2.txt")
-		return ErrNoArgs
+		return ErrCMPNoArgs
 	}
 	cmpStats, err := ReadStatsFiles(args[0], args[1])
 	if err != nil {

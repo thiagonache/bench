@@ -985,7 +985,12 @@ func TestCMPRun_ErrorsIfLessThanTwoArgs(t *testing.T) {
 	t.Parallel()
 
 	err := bench.CMPRun([]string{"bogus"})
-	if !errors.Is(err, bench.ErrNoArgs) {
-		t.Fatalf("want error bench.ErrNoArgs got %v", err)
+	if !errors.Is(err, bench.ErrCMPNoArgs) {
+		t.Errorf("want error bench.ErrCMPNoArgs if just one arg got %v", err)
+	}
+
+	err = bench.CMPRun([]string{})
+	if !errors.Is(err, bench.ErrCMPNoArgs) {
+		t.Errorf("want error bench.ErrCMPNoArgs if no args got %v", err)
 	}
 }
