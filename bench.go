@@ -581,18 +581,24 @@ func RunCLI(args []string) error {
 		}
 		tester.Run()
 	case "cmp":
-		if len(args) < 3 {
-			fmt.Println("Usage: ", os.Args[0], "cmp statsfile1.txt statsfile2.txt")
-			return ErrNoArgs
+		if err := CMPRun(args[1:]); err != nil {
+			return err
 		}
-		cmpStats, err := ReadStatsFiles(os.Args[2], os.Args[3])
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
-		}
-		fmt.Println(cmpStats)
 	default:
 		return ErrUnkownSubCommand
 	}
+	return nil
+}
+
+func CMPRun(args []string) error {
+	if len(args) < 2 {
+		fmt.Println("Usage: ", os.Args[0], "cmp statsfile1.txt statsfile2.txt")
+		return ErrNoArgs
+	}
+	cmpStats, err := ReadStatsFiles(args[0], args[1])
+	if err != nil {
+		return err
+	}
+	fmt.Println(cmpStats)
 	return nil
 }

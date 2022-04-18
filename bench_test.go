@@ -980,3 +980,12 @@ func TestRunCLI_ErrorsIfUnknownSubCommand(t *testing.T) {
 		t.Fatalf("want error bench.ErrUnkownSubCommand got %v", err)
 	}
 }
+
+func TestCMPRun_ErrorsIfLessThanTwoArgs(t *testing.T) {
+	t.Parallel()
+
+	err := bench.CMPRun([]string{"bogus"})
+	if !errors.Is(err, bench.ErrNoArgs) {
+		t.Fatalf("want error bench.ErrNoArgs got %v", err)
+	}
+}
