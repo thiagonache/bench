@@ -8,12 +8,8 @@ import (
 )
 
 func main() {
-	tester, err := bench.NewTester(
-		bench.FromArgs(os.Args[1:]),
-	)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+	if err := bench.RunCLI(os.Args[1:]); err != nil {
+		fmt.Println(err)
 		os.Exit(1)
 	}
-	tester.Run()
 }

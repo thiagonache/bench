@@ -38,6 +38,7 @@ var (
 	ErrNoURL            = errors.New("no URL to test")
 	ErrTimeNotRecorded  = errors.New("no execution time recorded")
 	ErrValueCannotBeNil = errors.New("value cannot be nil")
+	ErrUnkownSubCommand = errors.New("unknown subcommand. Valid commands are run or cmp")
 )
 
 type Tester struct {
@@ -435,25 +436,6 @@ func (t *TimeRecorder) RecordTime(executionTime float64) {
 	t.ExecutionsTime = append(t.ExecutionsTime, executionTime)
 }
 
-type CompareStats struct {
-	S1, S2 Stats
-}
-
-func (cs CompareStats) String() string {
-	buf := &bytes.Buffer{}
-	fmt.Fprintf(buf, "Site %s\n", cs.S1.URL)
-	writer := tabwriter.NewWriter(buf, 20, 0, 0, ' ', 0)
-	fmt.Fprintln(writer, "Metric\tOld\tNew\tDelta\tPercentage")
-	p50Delta := cs.S2.P50 - cs.S1.P50
-	fmt.Fprintf(writer, "P50(ms)\t%.3f\t%.3f\t%.3f\t%.2f\n", cs.S1.P50, cs.S2.P50, p50Delta, p50Delta/cs.S1.P50*100)
-	p90Delta := cs.S2.P90 - cs.S1.P90
-	fmt.Fprintf(writer, "P90(ms)\t%.3f\t%.3f\t%.3f\t%.2f\n", cs.S1.P90, cs.S2.P90, p90Delta, p90Delta/cs.S1.P90*100)
-	p99Delta := cs.S2.P99 - cs.S1.P99
-	fmt.Fprintf(writer, "P99(ms)\t%.3f\t%.3f\t%.3f\t%.2f\n", cs.S1.P99, cs.S2.P99, p99Delta, p99Delta/cs.S1.P99*100)
-	writer.Flush()
-	return buf.String()
-}
-
 type Option func(*Tester) error
 
 func ReadStatsFiles(path1, path2 string) (CompareStats, error) {
@@ -562,6 +544,55 @@ func WriteStatsFile(path string, stats Stats) error {
 	err = WriteStats(f, stats)
 	if err != nil {
 		return err
+	}
+	return nil
+}
+
+type CompareStats struct {
+	S1, S2 Stats
+}
+
+func (cs CompareStats) String() string {
+	buf := &bytes.Buffer{}
+	fmt.Fprintf(buf, "Site %s\n", cs.S1.URL)
+	writer := tabwriter.NewWriter(buf, 20, 0, 0, ' ', 0)
+	fmt.Fprintln(writer, "Metric\tOld\tNew\tDelta\tPercentage")
+	p50Delta := cs.S2.P50 - cs.S1.P50
+	fmt.Fprintf(writer, "P50(ms)\t%.3f\t%.3f\t%.3f\t%.2f\n", cs.S1.P50, cs.S2.P50, p50Delta, p50Delta/cs.S1.P50*100)
+	p90Delta := cs.S2.P90 - cs.S1.P90
+	fmt.Fprintf(writer, "P90(ms)\t%.3f\t%.3f\t%.3f\t%.2f\n", cs.S1.P90, cs.S2.P90, p90Delta, p90Delta/cs.S1.P90*100)
+	p99Delta := cs.S2.P99 - cs.S1.P99
+	fmt.Fprintf(writer, "P99(ms)\t%.3f\t%.3f\t%.3f\t%.2f\n", cs.S1.P99, cs.S2.P99, p99Delta, p99Delta/cs.S1.P99*100)
+	writer.Flush()
+	return buf.String()
+}
+
+func RunCLI(args []string) error {
+	if len(args) < 1 {
+		return ErrUnkownSubCommand
+	}
+	switch args[0] {
+	case "run":
+		tester, err := NewTester(
+			FromArgs(os.Args[2:]),
+		)
+		if err != nil {
+			return err
+		}
+		tester.Run()
+	case "cmp":
+		if len(args) < 3 {
+			fmt.Println("Usage: ", os.Args[0], "cmp statsfile1.txt statsfile2.txt")
+			return ErrNoArgs
+		}
+		cmpStats, err := ReadStatsFiles(os.Args[2], os.Args[3])
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		fmt.Println(cmpStats)
+	default:
+		return ErrUnkownSubCommand
 	}
 	return nil
 }

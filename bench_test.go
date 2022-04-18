@@ -962,3 +962,21 @@ P99(ms)             120.000             101.000             -19.000             
 		t.Fatal(cmp.Diff(want, got))
 	}
 }
+
+func TestRunCLI_ErrorsIfNoArgs(t *testing.T) {
+	t.Parallel()
+
+	err := bench.RunCLI([]string{})
+	if !errors.Is(err, bench.ErrUnkownSubCommand) {
+		t.Fatalf("want error bench.ErrUnkownSubCommand got %v", err)
+	}
+}
+
+func TestRunCLI_ErrorsIfUnknownSubCommand(t *testing.T) {
+	t.Parallel()
+
+	err := bench.RunCLI([]string{"bogus"})
+	if !errors.Is(err, bench.ErrUnkownSubCommand) {
+		t.Fatalf("want error bench.ErrUnkownSubCommand got %v", err)
+	}
+}
