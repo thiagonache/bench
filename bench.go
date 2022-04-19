@@ -384,13 +384,11 @@ func (t *Tester) SetMetrics() error {
 		totalTime += v
 	}
 	t.stats.URL = t.URL
-	t.stats.Mean = totalTime / nreq
 	return nil
 }
 
 type Stats struct {
 	URL       string
-	Mean      float64
 	P50       float64
 	P90       float64
 	P99       float64
