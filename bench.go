@@ -516,6 +516,16 @@ func ReadStats(r io.Reader) (Stats, error) {
 	return stats, nil
 }
 
+func WriteStatsFile(path string, stats Stats) error {
+	f, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	fmt.Fprint(f, stats)
+	return nil
+}
+
 type CompareStats struct {
 	S1, S2 Stats
 }
