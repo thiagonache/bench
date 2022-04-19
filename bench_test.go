@@ -646,11 +646,13 @@ func TestReadStatsFiles_ReadsTwoFilesAndReturnsCorrectStatsCompares(t *testing.T
 		Requests:  20,
 		Successes: 18,
 	}
-	f1 := dir + "/stats1.txt"
-	err := bench.WriteStatsFile(f1, stats1)
+	p1 := dir + "/stats1.txt"
+	f1, err := os.Create(p1)
 	if err != nil {
 		t.Fatal(err)
 	}
+	fmt.Fprint(f1, stats1)
+	f1.Close()
 
 	stats2 := bench.Stats{
 		P50:       5,
@@ -660,12 +662,15 @@ func TestReadStatsFiles_ReadsTwoFilesAndReturnsCorrectStatsCompares(t *testing.T
 		Requests:  40,
 		Successes: 19,
 	}
-	f2 := dir + "/stats2.txt"
-	err = bench.WriteStatsFile(f2, stats2)
+	p2 := dir + "/stats2.txt"
+	f2, err := os.Create(p2)
 	if err != nil {
 		t.Fatal(err)
 	}
-	got, err := bench.ReadStatsFiles(f1, f2)
+	fmt.Fprint(f2, stats2)
+	f2.Close()
+
+	got, err := bench.ReadStatsFiles(p1, p2)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -738,7 +743,8 @@ func TestReadStatsFile_PopulatesCorrectStatsFile(t *testing.T) {
 
 	dir := t.TempDir()
 	path := dir + "/stats.txt"
-	err := bench.WriteStatsFile(path, bench.Stats{
+	file, err := os.Create(path)
+	fmt.Fprint(file, bench.Stats{
 		P50:       20,
 		P90:       30,
 		P99:       100,
