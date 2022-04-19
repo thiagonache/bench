@@ -46,7 +46,6 @@ type Tester struct {
 	concurrency    int
 	client         *http.Client
 	endAt          time.Duration
-	exportStats    bool
 	graphs         bool
 	outputPath     string
 	requests       int
@@ -108,7 +107,6 @@ func FromArgs(args []string) Option {
 		fs.SetOutput(t.stderr)
 		reqs := fs.Int("r", 1, "number of requests to be performed in the benchmark")
 		graphs := fs.Bool("g", false, "generate graphs")
-		exportStats := fs.Bool("s", false, "generate stats file")
 		concurrency := fs.Int("c", 1, "number of concurrent requests (users) to run benchmark")
 		url := fs.String("u", "", "url to run benchmark")
 		if len(args) < 1 {
@@ -120,7 +118,6 @@ func FromArgs(args []string) Option {
 		t.requests = *reqs
 		t.graphs = *graphs
 		t.concurrency = *concurrency
-		t.exportStats = *exportStats
 		return nil
 	}
 }
@@ -194,23 +191,12 @@ func WithGraphs(graphs bool) Option {
 	}
 }
 
-func WithExportStats(exportStats bool) Option {
-	return func(t *Tester) error {
-		t.exportStats = exportStats
-		return nil
-	}
-}
-
 func (t Tester) Concurrency() int {
 	return t.concurrency
 }
 
 func (t Tester) EndAt() int64 {
 	return t.endAt.Milliseconds()
-}
-
-func (t Tester) ExportStats() bool {
-	return t.exportStats
 }
 
 func (t Tester) Graphs() bool {
@@ -299,17 +285,6 @@ func (t *Tester) Run() error {
 			return err
 		}
 		err = t.Histogram()
-		if err != nil {
-			return err
-		}
-	}
-	if t.ExportStats() {
-		file, err := os.Create(fmt.Sprintf("%s/%s", t.OutputPath(), "statsfile.txt"))
-		if err != nil {
-			return err
-		}
-		defer file.Close()
-		err = WriteStats(file, t.Stats())
 		if err != nil {
 			return err
 		}
