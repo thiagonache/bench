@@ -404,8 +404,7 @@ Successes: %d
 Failures: %d
 P50(ms): %.3f
 P90(ms): %.3f
-P99(ms): %.3f
-`, s.URL, s.Requests, s.Successes, s.Failures, s.P50, s.P90, s.P99,
+P99(ms): %.3f`, s.URL, s.Requests, s.Successes, s.Failures, s.P50, s.P90, s.P99,
 	)
 }
 
@@ -461,47 +460,55 @@ func ReadStats(r io.Reader) (Stats, error) {
 	scanner := bufio.NewScanner(r)
 	stats := Stats{}
 	for scanner.Scan() {
-		pos := strings.Split(scanner.Text(), ",")
-		url := pos[0]
-		dataRequests := pos[1]
-		requests, err := strconv.Atoi(dataRequests)
-		if err != nil {
-			return Stats{}, err
+		pos := strings.Split(scanner.Text(), " ")
+		if len(pos) < 2 {
+			continue
 		}
-		dataSuccesses := pos[2]
-		successes, err := strconv.Atoi(dataSuccesses)
-		if err != nil {
-			return Stats{}, err
+		field := pos[0]
+		value := pos[1]
+		switch field {
+		case "Site:":
+			stats.URL = value
+		case "Requests:":
+			valueConv, err := strconv.Atoi(value)
+			if err != nil {
+				return Stats{}, err
+			}
+			stats.Requests = valueConv
+		case "Successes:":
+			valueConv, err := strconv.Atoi(value)
+			if err != nil {
+				return Stats{}, err
+			}
+			stats.Successes = valueConv
+		case "Failures:":
+			valueConv, err := strconv.Atoi(value)
+			if err != nil {
+				return Stats{}, err
+			}
+			stats.Failures = valueConv
+		case "P50(ms):":
+			valueConv, err := strconv.ParseFloat(value, 64)
+			if err != nil {
+				return Stats{}, err
+			}
+			stats.P50 = valueConv
+
+		case "P90(ms):":
+			valueConv, err := strconv.ParseFloat(value, 64)
+			if err != nil {
+				return Stats{}, err
+			}
+			stats.P90 = valueConv
+
+		case "P99(ms):":
+			valueConv, err := strconv.ParseFloat(value, 64)
+			if err != nil {
+				return Stats{}, err
+			}
+			stats.P99 = valueConv
 		}
-		dataFailures := pos[3]
-		failures, err := strconv.Atoi(dataFailures)
-		if err != nil {
-			return Stats{}, err
-		}
-		dataP50 := pos[4]
-		p50, err := strconv.ParseFloat(dataP50, 64)
-		if err != nil {
-			return Stats{}, err
-		}
-		dataP90 := pos[5]
-		p90, err := strconv.ParseFloat(dataP90, 64)
-		if err != nil {
-			return Stats{}, err
-		}
-		dataP99 := pos[6]
-		p99, err := strconv.ParseFloat(dataP99, 64)
-		if err != nil {
-			return Stats{}, err
-		}
-		stats = Stats{
-			Failures:  failures,
-			P50:       p50,
-			P90:       p90,
-			P99:       p99,
-			Requests:  requests,
-			Successes: successes,
-			URL:       url,
-		}
+
 	}
 	if err := scanner.Err(); err != nil {
 		return Stats{}, err

@@ -92,7 +92,7 @@ func TestNewTester_ByDefaultIsSetForDefaultConcurrency(t *testing.T) {
 	}
 }
 
-func TestNewTester_WithNConcurrentSetsNConcurrenty(t *testing.T) {
+func TestNewTester_WithNConcurrentSetsNConcurrency(t *testing.T) {
 	t.Parallel()
 	tester, err := bench.NewTester(
 		bench.WithURL("http://fake.url"),
@@ -552,40 +552,6 @@ func TestNewTester_ByDefaultDoesNotGenerateGraphs(t *testing.T) {
 	})
 }
 
-func TestNewTester_ByDefaultDoesNotGenerateStatsFile(t *testing.T) {
-	t.Parallel()
-
-	server := httptest.NewTLSServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(rw, "HelloWorld")
-	}))
-	tempDir := t.TempDir()
-	tester, err := bench.NewTester(
-		bench.WithURL(server.URL),
-		bench.WithHTTPClient(server.Client()),
-		bench.WithStdout(io.Discard),
-		bench.WithStderr(io.Discard),
-		bench.WithOutputPath(tempDir),
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = tester.Run()
-	if err != nil {
-		t.Fatal(err)
-	}
-	filePath := fmt.Sprintf("%s/%s", tester.OutputPath(), "statsfile.txt")
-	_, err = os.Stat(filePath)
-	if err == nil {
-		t.Errorf("want file %q to not exist. Error found: %v", filePath, err)
-	}
-	t.Cleanup(func() {
-		err := os.RemoveAll(tester.OutputPath())
-		if err != nil {
-			fmt.Printf("cannot delete %s\n", tester.OutputPath())
-		}
-	})
-}
-
 func TestNewTester_WithURLSetsTesterURL(t *testing.T) {
 	t.Parallel()
 	tester, err := bench.NewTester(
@@ -741,19 +707,25 @@ func TestReadStatsFiles_ErrorsIfOneOrBothFilesUnreadable(t *testing.T) {
 
 func TestReadStats_PopulatesCorrectStats(t *testing.T) {
 	t.Parallel()
-	statsReader := strings.NewReader(`http://fake.url,20,19,1,100.123,150.000,198.465`)
+	statsReader := strings.NewReader(`Site: https://google.com
+Requests: 10
+Successes: 9
+Failures: 1
+P50(ms): 221.607
+P90(ms): 261.139
+P99(ms): 319.947`)
 	got, err := bench.ReadStats(statsReader)
 	if err != nil {
 		t.Fatal(err)
 	}
 	want := bench.Stats{
-		P50:       100.123,
-		P90:       150.000,
-		P99:       198.465,
+		P50:       221.607,
+		P90:       261.139,
+		P99:       319.947,
 		Failures:  1,
-		Requests:  20,
-		Successes: 19,
-		URL:       "http://fake.url",
+		Requests:  10,
+		Successes: 9,
+		URL:       "https://google.com",
 	}
 
 	if !cmp.Equal(want, got) {
@@ -894,8 +866,7 @@ Successes: 100
 Failures: 0
 P50(ms): 800.231
 P90(ms): 880.000
-P99(ms): 901.987
-`
+P99(ms): 901.987`
 	got := stats.String()
 	if !cmp.Equal(want, got) {
 		t.Error(cmp.Diff(want, got))
