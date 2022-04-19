@@ -314,9 +314,7 @@ func (t *Tester) Run() error {
 			return err
 		}
 	}
-	t.LogFStdOut("The benchmark of %s URL took %dms\n", t.URL, t.EndAt())
-	t.LogFStdOut("Requests: %d Success: %d Failures: %d\n", t.stats.Requests, t.stats.Successes, t.stats.Failures)
-	t.LogFStdOut("P50: %.3fms P90: %.3fms P99: %.3fms\n", t.stats.P50, t.stats.P90, t.stats.P99)
+	fmt.Fprintln(t.stdout, t.stats)
 	return nil
 }
 
@@ -424,6 +422,18 @@ type Stats struct {
 	Failures  int
 	Requests  int
 	Successes int
+}
+
+func (s Stats) String() string {
+	return fmt.Sprintf(`Site: %s
+Requests: %d
+Successes: %d
+Failures: %d
+P50(ms): %.3f
+P90(ms): %.3f
+P99(ms): %.3f
+`, s.URL, s.Requests, s.Successes, s.Failures, s.P50, s.P90, s.P99,
+	)
 }
 
 type TimeRecorder struct {

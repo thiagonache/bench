@@ -297,30 +297,6 @@ func TestRunReturnsValidStatsAndTime(t *testing.T) {
 	}
 }
 
-func TestRecordTime_CalledMultipleTimesSetsCorrectStatsAndNoError(t *testing.T) {
-	t.Parallel()
-	tester, err := bench.NewTester(
-		bench.WithURL("http://fake.url"),
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	tester.TimeRecorder.RecordTime(50)
-	tester.TimeRecorder.RecordTime(100)
-	tester.TimeRecorder.RecordTime(200)
-	tester.TimeRecorder.RecordTime(100)
-	tester.TimeRecorder.RecordTime(50)
-
-	err = tester.SetMetrics()
-	if err != nil {
-		t.Fatal(err)
-	}
-	stats := tester.Stats()
-	if stats.Mean != 100 {
-		t.Errorf("want 100ms mean time, got %v", stats.Mean)
-	}
-}
-
 func TestRecordTime_CalledMultipleTimesSetCorrectPercentilesAndReturnsNoError(t *testing.T) {
 	t.Parallel()
 	tester, err := bench.NewTester(
@@ -935,7 +911,7 @@ func TestWriteStats_PopulatesCorrectStats(t *testing.T) {
 	}
 }
 
-func TestCompareStateStringerPrintsExpectedMessage(t *testing.T) {
+func TestCompareStats_StringerPrintsExpectedMessage(t *testing.T) {
 	t.Parallel()
 	cs := bench.CompareStats{
 		S1: bench.Stats{
@@ -992,5 +968,30 @@ func TestCMPRun_ErrorsIfLessThanTwoArgs(t *testing.T) {
 	err = bench.CMPRun([]string{})
 	if !errors.Is(err, bench.ErrCMPNoArgs) {
 		t.Errorf("want error bench.ErrCMPNoArgs if no args got %v", err)
+	}
+}
+
+func TestStatsStringerPrintsExpectedMessage(t *testing.T) {
+	t.Parallel()
+
+	stats := bench.Stats{
+		URL:       "http://fake.url",
+		Requests:  100,
+		Successes: 100,
+		P50:       800.231,
+		P90:       880.000,
+		P99:       901.987,
+	}
+	want := `Site: http://fake.url
+Requests: 100
+Successes: 100
+Failures: 0
+P50(ms): 800.231
+P90(ms): 880.000
+P99(ms): 901.987
+`
+	got := stats.String()
+	if !cmp.Equal(want, got) {
+		t.Error(cmp.Diff(want, got))
 	}
 }
