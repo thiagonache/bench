@@ -18,4 +18,5 @@ review.md
 boxplot.png
 histogram.png
 statsfile*
+!testdata/statsfile*
 cmd/simplebench/simplebench
