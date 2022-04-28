@@ -785,7 +785,7 @@ func TestRunCLI_RunPrintsStats(t *testing.T) {
 		t.Error(err)
 	}
 	if !strings.HasPrefix(stdout.String(), "Site: https://bitfieldconsulting.com") {
-		t.Errorf(`want output to start with "Site: https://bitfieldconsulting.com" but found string %q`, stdout.String())
+		t.Errorf(`want output to start with "Site: https://bitfieldconsulting.com" but not found in string %q`, stdout.String())
 	}
 }
 
