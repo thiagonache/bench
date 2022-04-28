@@ -36,7 +36,6 @@ var (
 	}
 	ErrNoArgs           = errors.New("no arguments")
 	ErrCMPNoArgs        = errors.New("no stats file to compare. Please, specify two files")
-	ErrNoURL            = errors.New("no URL to test")
 	ErrTimeNotRecorded  = errors.New("no execution time recorded")
 	ErrValueCannotBeNil = errors.New("value cannot be nil")
 	ErrUnkownSubCommand = errors.New("unknown subcommand. Please, specify run or cmp")
@@ -84,15 +83,12 @@ func NewTester(opts ...Option) (*Tester, error) {
 			return nil, err
 		}
 	}
-	if tester.URL == "" {
-		return nil, ErrNoURL
-	}
 	u, err := url.Parse(tester.URL)
 	if err != nil {
 		return nil, err
 	}
 	if u.Host == "" {
-		return nil, fmt.Errorf("invalid URL %q", u)
+		return nil, fmt.Errorf("invalid URL %q", tester.URL)
 	}
 	if tester.requests < 1 {
 		return nil, fmt.Errorf("%d is invalid number of requests", tester.requests)
@@ -215,10 +211,6 @@ func (t Tester) OutputPath() string {
 	return t.outputPath
 }
 
-func (t Tester) StartTime() time.Time {
-	return t.startAt
-}
-
 func (t Tester) Stats() Stats {
 	return t.stats
 }
@@ -242,8 +234,8 @@ func (t *Tester) DoRequest() {
 		resp, err := t.client.Do(req)
 		elapsedTime := time.Since(startTime)
 		if err != nil {
-			t.RecordFailure()
 			t.LogStdErr(err.Error())
+			t.RecordFailure()
 			return
 		}
 		t.TimeRecorder.RecordTime(float64(elapsedTime.Nanoseconds()) / 1000000.0)
@@ -421,28 +413,6 @@ func (t *TimeRecorder) RecordTime(executionTime float64) {
 
 type Option func(*Tester) error
 
-func ReadStatsFiles(path1, path2 string) (CompareStats, error) {
-	f1, err := os.Open(path1)
-	if err != nil {
-		return CompareStats{}, err
-	}
-	defer f1.Close()
-	s1, err := ReadStatsFile(path1)
-	if err != nil {
-		return CompareStats{}, err
-	}
-	f2, err := os.Open(path2)
-	if err != nil {
-		return CompareStats{}, err
-	}
-	defer f2.Close()
-	s2, err := ReadStats(f2)
-	if err != nil {
-		return CompareStats{}, err
-	}
-	return CompareStats{S1: s1, S2: s2}, nil
-}
-
 func ReadStatsFile(path string) (Stats, error) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -450,8 +420,9 @@ func ReadStatsFile(path string) (Stats, error) {
 	}
 	defer f.Close()
 	stats, err := ReadStats(f)
+	// write a test for this case
 	if err != nil {
-		return Stats{}, err
+		return Stats{}, fmt.Errorf("filename %q, err: %v", path, err)
 	}
 	return stats, nil
 }
@@ -460,7 +431,8 @@ func ReadStats(r io.Reader) (Stats, error) {
 	scanner := bufio.NewScanner(r)
 	stats := Stats{}
 	for scanner.Scan() {
-		pos := strings.Split(scanner.Text(), " ")
+		text := scanner.Text()
+		pos := strings.Split(text, " ")
 		if len(pos) < 2 {
 			continue
 		}
@@ -507,6 +479,8 @@ func ReadStats(r io.Reader) (Stats, error) {
 				return Stats{}, err
 			}
 			stats.P99 = valueConv
+		default:
+			return Stats{}, fmt.Errorf("unknown statsfile format. Invalid line %q", text)
 		}
 
 	}
@@ -535,21 +509,22 @@ func (cs CompareStats) String() string {
 	return buf.String()
 }
 
-func RunCLI(args []string) error {
+func RunCLI(w io.Writer, args []string) error {
 	if len(args) < 1 {
 		return ErrUnkownSubCommand
 	}
 	switch args[0] {
 	case "run":
 		tester, err := NewTester(
-			FromArgs(os.Args[2:]),
+			FromArgs(args[1:]),
+			WithStdout(w),
 		)
 		if err != nil {
 			return err
 		}
 		tester.Run()
 	case "cmp":
-		err := CMPRun(args[1:])
+		err := CMPRun(w, args[1:])
 		if err != nil {
 			return err
 		}
@@ -559,14 +534,21 @@ func RunCLI(args []string) error {
 	return nil
 }
 
-func CMPRun(args []string) error {
+func CMPRun(w io.Writer, args []string) error {
 	if len(args) < 2 {
 		return ErrCMPNoArgs
 	}
-	cmpStats, err := ReadStatsFiles(args[0], args[1])
+	s1, err := ReadStatsFile(args[0])
 	if err != nil {
 		return err
 	}
-	fmt.Println(cmpStats)
+	s2, err := ReadStatsFile(args[1])
+	if err != nil {
+		return err
+	}
+	fmt.Fprint(w, CompareStats{
+		S1: s1,
+		S2: s2,
+	})
 	return nil
 }

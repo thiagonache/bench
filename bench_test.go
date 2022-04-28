@@ -239,6 +239,7 @@ func TestNewTester_WithInvalidURLReturnsError(t *testing.T) {
 		"bogus-no-scheme-or-domain",
 		"bogus-no-host://",
 		"bogus-no-scheme.fake",
+		"http://\n.fake",
 	}
 	for _, url := range inputs {
 		_, err := bench.NewTester(
@@ -586,8 +587,8 @@ func TestNewTester_ByDefaultReturnsErrorNoURL(t *testing.T) {
 	_, err := bench.NewTester(
 		bench.WithStderr(io.Discard),
 	)
-	if !errors.Is(err, bench.ErrNoURL) {
-		t.Errorf("want ErrNoURL error if no URL set, got %v", err)
+	if err == nil {
+		t.Error("want error if no URL set")
 	}
 }
 
@@ -608,8 +609,8 @@ func TestFromArgs_WithoutUFlagReturnsErrorNoURL(t *testing.T) {
 		bench.WithStderr(io.Discard),
 		bench.FromArgs([]string{"-r", "10"}),
 	)
-	if !errors.Is(err, bench.ErrNoURL) {
-		t.Errorf("want ErrNoURL error if no URL set, got %v", err)
+	if err == nil {
+		t.Error("want error if no URL set")
 	}
 }
 
@@ -635,76 +636,8 @@ func TestNewTester_WithNilStderrReturnsErrorValueCannotBeNil(t *testing.T) {
 	}
 }
 
-func TestReadStatsFiles_ReadsTwoFilesAndReturnsCorrectStatsCompares(t *testing.T) {
-	t.Parallel()
-	dir := t.TempDir()
-	stats1 := bench.Stats{
-		P50:       20,
-		P90:       30,
-		P99:       100,
-		Failures:  2,
-		Requests:  20,
-		Successes: 18,
-	}
-	p1 := dir + "/stats1.txt"
-	f1, err := os.Create(p1)
-	if err != nil {
-		t.Fatal(err)
-	}
-	fmt.Fprint(f1, stats1)
-	f1.Close()
-
-	stats2 := bench.Stats{
-		P50:       5,
-		P90:       33,
-		P99:       99,
-		Failures:  1,
-		Requests:  40,
-		Successes: 19,
-	}
-	p2 := dir + "/stats2.txt"
-	f2, err := os.Create(p2)
-	if err != nil {
-		t.Fatal(err)
-	}
-	fmt.Fprint(f2, stats2)
-	f2.Close()
-
-	got, err := bench.ReadStatsFiles(p1, p2)
-	if err != nil {
-		t.Fatal(err)
-	}
-	want := bench.CompareStats{
-		S1: bench.Stats{
-			P50:       20,
-			P90:       30,
-			P99:       100,
-			Failures:  2,
-			Requests:  20,
-			Successes: 18,
-		},
-		S2: bench.Stats{
-			P50:       5,
-			P90:       33,
-			P99:       99,
-			Failures:  1,
-			Requests:  40,
-			Successes: 19},
-	}
-	if !cmp.Equal(want, got) {
-		t.Error(cmp.Diff(want, got))
-	}
-
-	t.Cleanup(func() {
-		err := os.RemoveAll(dir)
-		if err != nil {
-			fmt.Printf("cannot delete %s\n", dir)
-		}
-	})
-}
-
-func TestReadStatsFiles_ErrorsIfOneOrBothFilesUnreadable(t *testing.T) {
-	_, err := bench.ReadStatsFiles("bogus", "even more bogus")
+func TestReadStatsFile_ErrorsIfFileUnreadable(t *testing.T) {
+	_, err := bench.ReadStatsFile("bogus")
 	if !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("want error os.ErrNotExist got %v", err)
 	}
@@ -829,7 +762,7 @@ P99(ms)             120.000             101.000             -19.000             
 func TestRunCLI_ErrorsIfNoArgs(t *testing.T) {
 	t.Parallel()
 
-	err := bench.RunCLI([]string{})
+	err := bench.RunCLI(io.Discard, []string{})
 	if !errors.Is(err, bench.ErrUnkownSubCommand) {
 		t.Fatalf("want error bench.ErrUnkownSubCommand got %v", err)
 	}
@@ -838,21 +771,45 @@ func TestRunCLI_ErrorsIfNoArgs(t *testing.T) {
 func TestRunCLI_ErrorsIfUnknownSubCommand(t *testing.T) {
 	t.Parallel()
 
-	err := bench.RunCLI([]string{"bogus"})
+	err := bench.RunCLI(io.Discard, []string{"bogus"})
 	if !errors.Is(err, bench.ErrUnkownSubCommand) {
 		t.Fatalf("want error bench.ErrUnkownSubCommand got %v", err)
+	}
+}
+
+func TestRunCLI_RunPrintsStats(t *testing.T) {
+	t.Parallel()
+	stdout := &bytes.Buffer{}
+	err := bench.RunCLI(stdout, []string{"run", "-u", "https://bitfieldconsulting.com"})
+	if err != nil {
+		t.Error(err)
+	}
+	if !strings.HasPrefix(stdout.String(), "Site: https://bitfieldconsulting.com") {
+		t.Errorf(`want output to start with "Site: https://bitfieldconsulting.com" but found string %q`, stdout.String())
+	}
+}
+
+func TestRunCLI_CMPPrintsComparison(t *testing.T) {
+	t.Parallel()
+	stdout := &bytes.Buffer{}
+	err := bench.RunCLI(stdout, []string{"cmp", "testdata/statsfile1.txt", "testdata/statsfile2.txt"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(stdout.String(), "Metric") {
+		t.Errorf(`want output to contains Metric but not found in string %q`, stdout.String())
 	}
 }
 
 func TestCMPRun_ErrorsIfLessThanTwoArgs(t *testing.T) {
 	t.Parallel()
 
-	err := bench.CMPRun([]string{"bogus"})
+	err := bench.CMPRun(io.Discard, []string{"bogus"})
 	if !errors.Is(err, bench.ErrCMPNoArgs) {
 		t.Errorf("want error bench.ErrCMPNoArgs if just one arg got %v", err)
 	}
 
-	err = bench.CMPRun([]string{})
+	err = bench.CMPRun(io.Discard, []string{})
 	if !errors.Is(err, bench.ErrCMPNoArgs) {
 		t.Errorf("want error bench.ErrCMPNoArgs if no args got %v", err)
 	}

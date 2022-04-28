@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	if err := bench.RunCLI(os.Args[1:]); err != nil {
+	if err := bench.RunCLI(os.Stdout, os.Args[1:]); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
