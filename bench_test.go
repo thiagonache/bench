@@ -47,6 +47,33 @@ func TestNonOKStatusRecordedAsFailure(t *testing.T) {
 	}
 }
 
+func TestFailedConnectionRecordedAsFailure(t *testing.T) {
+	t.Parallel()
+
+	tester, err := bench.NewTester(
+		bench.WithURL("http://127.0.0.1:1000000"),
+		bench.WithStdout(io.Discard),
+		bench.WithStderr(io.Discard),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = tester.Run()
+	if err != nil {
+		t.Fatal(err)
+	}
+	stats := tester.Stats()
+	if stats.Requests != 1 {
+		t.Errorf("want 1 request, got %d", stats.Requests)
+	}
+	if stats.Successes != 0 {
+		t.Errorf("want 0 successes, got %d", stats.Successes)
+	}
+	if stats.Failures != 1 {
+		t.Errorf("want 1 failure, got %d", stats.Failures)
+	}
+}
+
 func TestNewTester_ByDefaultIsSetForDefaultNumRequests(t *testing.T) {
 	t.Parallel()
 	tester, err := bench.NewTester(
@@ -314,10 +341,7 @@ func TestRecordTime_CalledMultipleTimesSetCorrectPercentilesAndReturnsNoError(t 
 	tester.TimeRecorder.RecordTime(11)
 	tester.TimeRecorder.RecordTime(13)
 
-	err = tester.SetMetrics()
-	if err != nil {
-		t.Fatal(err)
-	}
+	tester.SetMetrics()
 	stats := tester.Stats()
 	if stats.P50 != 8 {
 		t.Errorf("want 50th percentile request time of 8ms, got %v", stats.P50)
@@ -327,21 +351,6 @@ func TestRecordTime_CalledMultipleTimesSetCorrectPercentilesAndReturnsNoError(t 
 	}
 	if stats.P99 != 13 {
 		t.Errorf("want 99th percentile request time of 13ms, got %v", stats.P99)
-	}
-}
-
-func TestSetMetrics_ErrorsIfRecordTimeIsNotCalled(t *testing.T) {
-	t.Parallel()
-	tester, err := bench.NewTester(
-		bench.WithURL("http://fake.url"),
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = tester.SetMetrics()
-	if !errors.Is(err, bench.ErrTimeNotRecorded) {
-		t.Errorf("want ErrTimeNotRecorded error if there is no ExecutionsTime, got %q", err)
 	}
 }
 

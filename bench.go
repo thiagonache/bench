@@ -267,12 +267,10 @@ func (t *Tester) Run() error {
 	}()
 	t.wg.Wait()
 	t.endAt = time.Since(t.startAt)
-	err := t.SetMetrics()
-	if err != nil {
-		return err
-	}
+	t.SetMetrics()
+
 	if t.Graphs() {
-		err = t.Boxplot()
+		err := t.Boxplot()
 		if err != nil {
 			return err
 		}
@@ -354,10 +352,10 @@ func (t Tester) LogFStdErr(msg string, opts ...interface{}) {
 	fmt.Fprintf(t.stderr, msg, opts...)
 }
 
-func (t *Tester) SetMetrics() error {
+func (t *Tester) SetMetrics() {
 	times := t.TimeRecorder.ExecutionsTime
 	if len(times) < 1 {
-		return ErrTimeNotRecorded
+		return
 	}
 	sort.Slice(times, func(i, j int) bool {
 		return times[i] < times[j]
@@ -376,7 +374,6 @@ func (t *Tester) SetMetrics() error {
 		totalTime += v
 	}
 	t.stats.URL = t.URL
-	return nil
 }
 
 type Stats struct {
