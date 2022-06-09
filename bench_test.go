@@ -341,7 +341,7 @@ func TestRecordTime_CalledMultipleTimesSetCorrectPercentilesAndReturnsNoError(t 
 	tester.TimeRecorder.RecordTime(11)
 	tester.TimeRecorder.RecordTime(13)
 
-	tester.SetMetrics()
+	tester.CalculatePercentiles()
 	stats := tester.Stats()
 	if stats.P50 != 8 {
 		t.Errorf("want 50th percentile request time of 8ms, got %v", stats.P50)

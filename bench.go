@@ -267,7 +267,7 @@ func (t *Tester) Run() error {
 	}()
 	t.wg.Wait()
 	t.endAt = time.Since(t.startAt)
-	t.SetMetrics()
+	t.CalculatePercentiles()
 
 	if t.Graphs() {
 		err := t.Boxplot()
@@ -352,7 +352,7 @@ func (t Tester) LogFStdErr(msg string, opts ...interface{}) {
 	fmt.Fprintf(t.stderr, msg, opts...)
 }
 
-func (t *Tester) SetMetrics() {
+func (t *Tester) CalculatePercentiles() {
 	times := t.TimeRecorder.ExecutionsTime
 	if len(times) < 1 {
 		return
