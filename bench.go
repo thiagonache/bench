@@ -268,7 +268,6 @@ func (t *Tester) Run() error {
 	t.wg.Wait()
 	t.endAt = time.Since(t.startAt)
 	t.CalculatePercentiles()
-
 	if t.Graphs() {
 		err := t.Boxplot()
 		if err != nil {
@@ -366,7 +365,6 @@ func (t *Tester) CalculatePercentiles() {
 	t.stats.P90 = times[p90Idx]
 	p99Idx := int(math.Round(float64(len(times))*0.99)) - 1
 	t.stats.P99 = times[p99Idx]
-
 	nreq := 0.0
 	totalTime := 0.0
 	for _, v := range times {
@@ -462,14 +460,12 @@ func ReadStats(r io.Reader) (Stats, error) {
 				return Stats{}, err
 			}
 			stats.P50 = valueConv
-
 		case "P90(ms):":
 			valueConv, err := strconv.ParseFloat(value, 64)
 			if err != nil {
 				return Stats{}, err
 			}
 			stats.P90 = valueConv
-
 		case "P99(ms):":
 			valueConv, err := strconv.ParseFloat(value, 64)
 			if err != nil {
