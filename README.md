@@ -2,17 +2,15 @@
 
 An HTTP load tester tool.
 
-## Basic usage
-
-### Import
+## Import
 
 ```go
 import "github.com/thiagonache/bench"
 ```
 
-### CLI
+## CLI
 
-#### Run
+### Run
 
 ```bash
 $ simplebench run -r 10 -c 2 -u https://example.com
@@ -25,7 +23,7 @@ P90(ms): 484.001
 P99(ms): 484.006
 ```
 
-#### Cmp
+### Cmp
 
 ```bash
 $ simplebench run -r 50 -u https://example.com > stats1.txt
