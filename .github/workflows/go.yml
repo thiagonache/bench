@@ -19,6 +19,9 @@ jobs:
         with:
           go-version-file: "go.mod"
 
+      - name: "Get Golint"
+        run: "go get golang.org/x/lint/golint"
+
       - name: "Install Golint"
         run: "go install golang.org/x/lint/golint"
 
