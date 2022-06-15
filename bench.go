@@ -125,7 +125,10 @@ func FromArgs(args []string) Option {
 			fs.Usage()
 			return ErrNoArgs
 		}
-		fs.Parse(args)
+		err := fs.Parse(args)
+		if err != nil {
+			return err
+		}
 		t.URL = *url
 		t.requests = *reqs
 		t.graphs = *graphs
@@ -574,7 +577,10 @@ func RunCLI(w io.Writer, args []string) error {
 		if err != nil {
 			return err
 		}
-		tester.Run()
+		err = tester.Run()
+		if err != nil {
+			return err
+		}
 	case "cmp":
 		err := CMPRun(w, args[1:])
 		if err != nil {
