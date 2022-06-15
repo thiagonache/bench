@@ -420,12 +420,6 @@ func (t *Tester) CalculatePercentiles() {
 	t.stats.P90 = times[p90Idx]
 	p99Idx := int(math.Round(float64(len(times))*0.99)) - 1
 	t.stats.P99 = times[p99Idx]
-	nreq := 0.0
-	totalTime := 0.0
-	for _, v := range times {
-		nreq++
-		totalTime += v
-	}
 	t.stats.URL = t.URL
 }
 
