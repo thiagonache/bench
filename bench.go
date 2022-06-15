@@ -24,23 +24,36 @@ import (
 )
 
 const (
+	// DefaultConcurrency sets the default number of simultaneos users
 	DefaultConcurrency = 1
+	// DefaultNumRequests sets the default number of requests to be performed
 	DefaultNumRequests = 1
-	DefaultOutputPath  = "./"
-	DefaultUserAgent   = "Bench 0.0.1 Alpha"
+	// DefaultOutputPath sets the default output path for the graphs
+	DefaultOutputPath = "./"
+	// DefaultUserAgent sets the default user agent to be used in the HTTP calls
+	DefaultUserAgent = "Bench 0.0.1 Alpha"
 )
 
 var (
+	// DefaultHTTPClient instantiate the http.Client with 5 seconds timeout
 	DefaultHTTPClient = &http.Client{
 		Timeout: 5 * time.Second,
 	}
-	ErrNoArgs           = errors.New("no arguments")
-	ErrCMPNoArgs        = errors.New("no stats file to compare. Please, specify two files")
-	ErrTimeNotRecorded  = errors.New("no execution time recorded")
+	// ErrNoArgs is the error for when no arguments is passed via CLI
+	ErrNoArgs = errors.New("no arguments")
+	// ErrCMPNoArgs is the error for when no arguments is passed to the cmp subcommand
+	ErrCMPNoArgs = errors.New("no stats file to compare. Please, specify two files")
+	// ErrTimeNotRecorded is the error for when there is no execution time recorded
+	ErrTimeNotRecorded = errors.New("no execution time recorded")
+	// ErrValueCannotBeNil is the error for when the interfaces io.Writer or
+	// io.Reader is nuil
 	ErrValueCannotBeNil = errors.New("value cannot be nil")
+	// ErrUnkownSubCommand is the error for when the subcommand is not known
+	// (run or cmp)
 	ErrUnkownSubCommand = errors.New("unknown subcommand. Please, specify run or cmp")
 )
 
+// Tester is the main struct where most information are stored
 type Tester struct {
 	concurrency    int
 	client         *http.Client
@@ -60,6 +73,8 @@ type Tester struct {
 	TimeRecorder TimeRecorder
 }
 
+// NewTester creates a new Tester object, applies functional options and some
+// simple checks on the data passed in, and returns a pointer to Tester and an error
 func NewTester(opts ...Option) (*Tester, error) {
 	tester := &Tester{
 		client:      DefaultHTTPClient,
@@ -97,6 +112,7 @@ func NewTester(opts ...Option) (*Tester, error) {
 	return tester, nil
 }
 
+// FromArgs creates a new flagset and sets the values in the Tester struct
 func FromArgs(args []string) Option {
 	return func(t *Tester) error {
 		fs := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
@@ -118,6 +134,8 @@ func FromArgs(args []string) Option {
 	}
 }
 
+// WithRequests is the functional option to set the number of requests while
+// initializing a new Tester object
 func WithRequests(reqs int) Option {
 	return func(t *Tester) error {
 		t.requests = reqs
@@ -125,6 +143,8 @@ func WithRequests(reqs int) Option {
 	}
 }
 
+// WithHTTPUserAgent is the functional option to set the HTTP user agent while
+// initializing a new Tester object
 func WithHTTPUserAgent(userAgent string) Option {
 	return func(t *Tester) error {
 		t.userAgent = userAgent
@@ -132,6 +152,8 @@ func WithHTTPUserAgent(userAgent string) Option {
 	}
 }
 
+// WithHTTPClient is the functional option to set a custom http.Client while
+// initializing a new Tester object
 func WithHTTPClient(client *http.Client) Option {
 	return func(t *Tester) error {
 		t.client = client
@@ -139,6 +161,8 @@ func WithHTTPClient(client *http.Client) Option {
 	}
 }
 
+// WithStdout is the functional option to set a custom io.Writer for stdout
+// while initializing a new Tester object
 func WithStdout(w io.Writer) Option {
 	return func(t *Tester) error {
 		if w == nil {
@@ -149,6 +173,8 @@ func WithStdout(w io.Writer) Option {
 	}
 }
 
+// WithStderr is the functional option to set a custom io.Writer for stderr
+// while initializing a new Tester object
 func WithStderr(w io.Writer) Option {
 	return func(lg *Tester) error {
 		if w == nil {
@@ -159,6 +185,8 @@ func WithStderr(w io.Writer) Option {
 	}
 }
 
+// WithConcurrency is the functional option to set the number of simultaneos
+// users while initializing a new Tester object
 func WithConcurrency(c int) Option {
 	return func(lg *Tester) error {
 		lg.concurrency = c
@@ -166,6 +194,8 @@ func WithConcurrency(c int) Option {
 	}
 }
 
+// WithURL is the functional option to set the site URL while initializing a new
+// Tester object
 func WithURL(URL string) Option {
 	return func(t *Tester) error {
 		t.URL = URL
@@ -173,6 +203,8 @@ func WithURL(URL string) Option {
 	}
 }
 
+// WithOutputPath is the functional option to set the output path for the graphs
+// while initializing a new Tester object
 func WithOutputPath(outputPath string) Option {
 	return func(t *Tester) error {
 		t.outputPath = outputPath
@@ -180,6 +212,8 @@ func WithOutputPath(outputPath string) Option {
 	}
 }
 
+// WithGraphs is the functional option to set whether graphs should be generated
+// or not while initializing a new Tester object
 func WithGraphs(graphs bool) Option {
 	return func(t *Tester) error {
 		t.graphs = graphs
@@ -187,38 +221,47 @@ func WithGraphs(graphs bool) Option {
 	}
 }
 
+// Concurrency returns the value of simultaneos users
 func (t Tester) Concurrency() int {
 	return t.concurrency
 }
 
+// EndAt returns the value that benchmark is done
 func (t Tester) EndAt() int64 {
 	return t.endAt.Milliseconds()
 }
 
+// Graphs returns whether graphs should be generated or not
 func (t Tester) Graphs() bool {
 	return t.graphs
 }
 
+// HTTPUserAgent returns the current HTTP User Agent
 func (t Tester) HTTPUserAgent() string {
 	return t.userAgent
 }
 
+// HTTPClient returns the current http.Client
 func (t Tester) HTTPClient() *http.Client {
 	return t.client
 }
 
+// OutputPath returns the current path where files will be generated
 func (t Tester) OutputPath() string {
 	return t.outputPath
 }
 
+// Stats returns the current stats
 func (t Tester) Stats() Stats {
 	return t.stats
 }
 
+// Requests returns the current number of requests configured
 func (t Tester) Requests() int {
 	return t.requests
 }
 
+// DoRequest perform the HTTP request, record the stats and success or failure
 func (t *Tester) DoRequest() {
 	for range t.work {
 		t.RecordRequest()
@@ -248,6 +291,7 @@ func (t *Tester) DoRequest() {
 	}
 }
 
+// Run orchestrates the main program and go routines
 func (t *Tester) Run() error {
 	t.wg.Add(t.Concurrency())
 	go func() {
@@ -282,6 +326,7 @@ func (t *Tester) Run() error {
 	return nil
 }
 
+// Boxplot generates a boxplot graph
 func (t Tester) Boxplot() error {
 	p := plot.New()
 	p.Title.Text = "Latency boxplot"
@@ -300,6 +345,7 @@ func (t Tester) Boxplot() error {
 	return nil
 }
 
+// Histogram generates a histogram graph
 func (t Tester) Histogram() error {
 	p := plot.New()
 	p.Title.Text = "Latency Histogram"
@@ -317,40 +363,49 @@ func (t Tester) Histogram() error {
 	return nil
 }
 
+// RecordRequest uses mutex to increment one in the total requests
 func (t *Tester) RecordRequest() {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	t.stats.Requests++
 }
 
+// RecordSuccess uses mutex to increment one in the total successes
 func (t *Tester) RecordSuccess() {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	t.stats.Successes++
 }
 
+// RecordFailure uses mutex to increment one in the total failures
 func (t *Tester) RecordFailure() {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	t.stats.Failures++
 }
 
+// LogStdOut is a wrapper to avoid Fprint to t.stdout in several places.
 func (t Tester) LogStdOut(msg string) {
 	fmt.Fprint(t.stdout, msg)
 }
 
+// LogStdErr is a wrapper to avoid Fprint to t.stderr in several places.
 func (t Tester) LogStdErr(msg string) {
 	fmt.Fprint(t.stderr, msg)
 }
 
+// LogFStdOut is a wrapper to avoid Fprintf to t.stdout in several places.
 func (t Tester) LogFStdOut(msg string, opts ...interface{}) {
 	fmt.Fprintf(t.stdout, msg, opts...)
 }
 
+// LogFStdErr is a wrapper to avoid Fprintf to t.stderr in several places.
 func (t Tester) LogFStdErr(msg string, opts ...interface{}) {
 	fmt.Fprintf(t.stderr, msg, opts...)
 }
 
+// CalculatePercentiles check if there is time recorded, calculates p50, p90 and
+// p99 metrics plus the total time for all executions
 func (t *Tester) CalculatePercentiles() {
 	times := t.TimeRecorder.ExecutionsTime
 	if len(times) < 1 {
@@ -365,15 +420,10 @@ func (t *Tester) CalculatePercentiles() {
 	t.stats.P90 = times[p90Idx]
 	p99Idx := int(math.Round(float64(len(times))*0.99)) - 1
 	t.stats.P99 = times[p99Idx]
-	nreq := 0.0
-	totalTime := 0.0
-	for _, v := range times {
-		nreq++
-		totalTime += v
-	}
 	t.stats.URL = t.URL
 }
 
+// Stats is the struct to store statistical information about the benchmark
 type Stats struct {
 	URL       string
 	P50       float64
@@ -384,6 +434,7 @@ type Stats struct {
 	Successes int
 }
 
+// String returns printable string of the stats
 func (s Stats) String() string {
 	return fmt.Sprintf(`Site: %s
 Requests: %d
@@ -395,19 +446,23 @@ P99(ms): %.3f`, s.URL, s.Requests, s.Successes, s.Failures, s.P50, s.P90, s.P99,
 	)
 }
 
+// TimeRecorder is the struct to store all execution times
 type TimeRecorder struct {
 	mu             *sync.Mutex
 	ExecutionsTime []float64
 }
 
+// RecordTime uses mutex to add new execution time in the slice of execution times
 func (t *TimeRecorder) RecordTime(executionTime float64) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	t.ExecutionsTime = append(t.ExecutionsTime, executionTime)
 }
 
+// Option is a type for functional options
 type Option func(*Tester) error
 
+// ReadStatsFile is a wrapper to avoid user paperwork of opening the file
 func ReadStatsFile(path string) (Stats, error) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -422,6 +477,7 @@ func ReadStatsFile(path string) (Stats, error) {
 	return stats, nil
 }
 
+// ReadStats reads the stats of a given io.Reader and returns the stats and an error
 func ReadStats(r io.Reader) (Stats, error) {
 	scanner := bufio.NewScanner(r)
 	stats := Stats{}
@@ -483,10 +539,12 @@ func ReadStats(r io.Reader) (Stats, error) {
 	return stats, nil
 }
 
+// CompareStats stores two stats to compare them
 type CompareStats struct {
 	S1, S2 Stats
 }
 
+// String returns a printable string from comparison of two stats.
 func (cs CompareStats) String() string {
 	buf := &bytes.Buffer{}
 	fmt.Fprintf(buf, "Site %s\n", cs.S1.URL)
@@ -502,6 +560,7 @@ func (cs CompareStats) String() string {
 	return buf.String()
 }
 
+// RunCLI is the main entrypoint for the CLI
 func RunCLI(w io.Writer, args []string) error {
 	if len(args) < 1 {
 		return ErrUnkownSubCommand
@@ -527,6 +586,7 @@ func RunCLI(w io.Writer, args []string) error {
 	return nil
 }
 
+// CMPRun is the entrypoint for the subcommand cmp
 func CMPRun(w io.Writer, args []string) error {
 	if len(args) < 2 {
 		return ErrCMPNoArgs
