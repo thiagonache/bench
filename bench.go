@@ -55,10 +55,11 @@ var (
 
 // Tester is the main struct where most information are stored
 type Tester struct {
-	concurrency    int
 	client         *http.Client
+	concurrency    int
 	endAt          time.Duration
 	graphs         bool
+	httpMethod     string
 	outputPath     string
 	requests       int
 	startAt        time.Time
@@ -79,6 +80,7 @@ func NewTester(opts ...Option) (*Tester, error) {
 	tester := &Tester{
 		client:      DefaultHTTPClient,
 		concurrency: DefaultConcurrency,
+		httpMethod:  http.MethodGet,
 		outputPath:  DefaultOutputPath,
 		requests:    DefaultNumRequests,
 		stats:       Stats{},
@@ -120,6 +122,7 @@ func FromArgs(args []string) Option {
 		reqs := fs.Int("r", 1, "number of requests to be performed in the benchmark")
 		graphs := fs.Bool("g", false, "generate graphs")
 		concurrency := fs.Int("c", 1, "number of concurrent requests (users) to run benchmark")
+		method := fs.String("m", "GET", "http method for the requests")
 		url := fs.String("u", "", "url to run benchmark")
 		if len(args) < 1 {
 			fs.Usage()
@@ -133,6 +136,7 @@ func FromArgs(args []string) Option {
 		t.requests = *reqs
 		t.graphs = *graphs
 		t.concurrency = *concurrency
+		t.httpMethod = *method
 		return nil
 	}
 }
@@ -160,6 +164,15 @@ func WithHTTPUserAgent(userAgent string) Option {
 func WithHTTPClient(client *http.Client) Option {
 	return func(t *Tester) error {
 		t.client = client
+		return nil
+	}
+}
+
+// WithHTTPMethod is the functional option to set a custom http method while
+// initializing a new Tester object
+func WithHTTPMethod(method string) Option {
+	return func(t *Tester) error {
+		t.httpMethod = method
 		return nil
 	}
 }
@@ -264,11 +277,16 @@ func (t Tester) Requests() int {
 	return t.requests
 }
 
+// HTTPMethod returns the current HTTP method configured
+func (t Tester) HTTPMethod() string {
+	return t.httpMethod
+}
+
 // DoRequest perform the HTTP request, record the stats and success or failure
 func (t *Tester) DoRequest() {
 	for range t.work {
 		t.RecordRequest()
-		req, err := http.NewRequest(http.MethodGet, t.URL, nil)
+		req, err := http.NewRequest(t.httpMethod, t.URL, nil)
 		if err != nil {
 			t.LogStdErr(err.Error())
 			t.RecordFailure()

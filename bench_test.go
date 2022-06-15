@@ -119,6 +119,83 @@ func TestNewTester_ByDefaultIsSetForDefaultConcurrency(t *testing.T) {
 	}
 }
 
+func TestNewTester_ByDefaultIsSetForHTTPGetMethod(t *testing.T) {
+	t.Parallel()
+	tester, err := bench.NewTester(
+		bench.WithURL("http://fake.url"),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := http.MethodGet
+	got := tester.HTTPMethod()
+	if want != got {
+		t.Errorf("want tester default method (%q), got %q", want, got)
+	}
+}
+
+func TestNewTester_WithHTTPMethodXSetsMethodX(t *testing.T) {
+	t.Parallel()
+	tester, err := bench.NewTester(
+		bench.WithURL("http://fake.url"),
+		bench.WithHTTPMethod(http.MethodPost),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := http.MethodPost
+	got := tester.HTTPMethod()
+	if want != got {
+		t.Errorf("want http method %q, got %q", want, got)
+	}
+}
+
+func TestFromArgs_MFlagSetsHTTPMethod(t *testing.T) {
+	t.Parallel()
+	args := []string{"-m", "DELETE", "-u", "http://fake.url/users/1"}
+	tester, err := bench.NewTester(
+		bench.WithStderr(io.Discard),
+		bench.FromArgs(args),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := http.MethodDelete
+	got := tester.HTTPMethod()
+	if want != got {
+		t.Errorf("wants -m flag to set http method to %q, got %q", want, got)
+	}
+}
+
+func TestDeleteMethodDoesDeleteHTTPCalls(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewTLSServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodDelete:
+			fmt.Fprintln(rw, "OK")
+		default:
+			http.Error(rw, "Error", http.StatusInternalServerError)
+		}
+	}))
+	tester, err := bench.NewTester(
+		bench.WithURL(server.URL),
+		bench.WithHTTPMethod(http.MethodDelete),
+		bench.WithHTTPClient(server.Client()),
+		bench.WithStderr(io.Discard),
+		bench.WithStdout(io.Discard),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = tester.Run()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tester.Stats().Failures > 0 {
+		t.Errorf("want failures to be zero but got %d", tester.Stats().Failures)
+	}
+}
+
 func TestNewTester_WithNConcurrentSetsNConcurrency(t *testing.T) {
 	t.Parallel()
 	tester, err := bench.NewTester(
@@ -576,7 +653,7 @@ func TestNewTester_WithURLSetsTesterURL(t *testing.T) {
 	}
 }
 
-func TestFromArgs_WithURLSetsTesterURL(t *testing.T) {
+func TestFromArgs_WithArgRSetsTesterURL(t *testing.T) {
 	t.Parallel()
 	tester, err := bench.NewTester(
 		bench.WithStderr(io.Discard),
