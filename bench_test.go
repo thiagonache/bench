@@ -515,12 +515,6 @@ func TestNewTester_WithTrueGraphsModeGeneratesGraphs(t *testing.T) {
 	if err != nil {
 		t.Errorf("want file %q to exist", filePath)
 	}
-	t.Cleanup(func() {
-		err := os.RemoveAll(tester.OutputPath())
-		if err != nil {
-			fmt.Printf("cannot delete %s\n", tester.OutputPath())
-		}
-	})
 }
 
 func TestNewTester_ByDefaultDoesNotGenerateGraphs(t *testing.T) {
@@ -554,12 +548,6 @@ func TestNewTester_ByDefaultDoesNotGenerateGraphs(t *testing.T) {
 	if err == nil {
 		t.Errorf("want file %q to not exist. Error found: %v", filePath, err)
 	}
-	t.Cleanup(func() {
-		err := os.RemoveAll(tester.OutputPath())
-		if err != nil {
-			fmt.Printf("cannot delete %s\n", tester.OutputPath())
-		}
-	})
 }
 
 func TestNewTester_WithURLSetsTesterURL(t *testing.T) {
