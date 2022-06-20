@@ -200,14 +200,14 @@ func TestFromArgs_MFlagDownCaseSetsUpperCase(t *testing.T) {
 	}
 }
 
-func TestDeleteMethodDoesDeleteHTTPCalls(t *testing.T) {
+func TestRun_MethodXDoesMethodXHTTPRequest(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewTLSServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodDelete:
 			fmt.Fprintln(rw, "OK")
 		default:
-			http.Error(rw, "Error", http.StatusInternalServerError)
+			http.Error(rw, "Error", http.StatusMethodNotAllowed)
 		}
 	}))
 	tester, err := bench.NewTester(
