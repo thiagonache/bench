@@ -150,9 +150,42 @@ func TestNewTester_WithHTTPMethodXSetsMethodX(t *testing.T) {
 	}
 }
 
+func TestNewTester_WithHTTPMethodDownCaseSetsUpperCase(t *testing.T) {
+	t.Parallel()
+	tester, err := bench.NewTester(
+		bench.WithURL("http://fake.url"),
+		bench.WithHTTPMethod("post"),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := http.MethodPost
+	got := tester.HTTPMethod()
+	if want != got {
+		t.Errorf("want http method %q, got %q", want, got)
+	}
+}
+
 func TestFromArgs_MFlagSetsHTTPMethod(t *testing.T) {
 	t.Parallel()
 	args := []string{"-m", "DELETE", "-u", "http://fake.url/users/1"}
+	tester, err := bench.NewTester(
+		bench.WithStderr(io.Discard),
+		bench.FromArgs(args),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := http.MethodDelete
+	got := tester.HTTPMethod()
+	if want != got {
+		t.Errorf("wants -m flag to set http method to %q, got %q", want, got)
+	}
+}
+
+func TestFromArgs_MFlagDownCaseSetsUpperCase(t *testing.T) {
+	t.Parallel()
+	args := []string{"-m", "delete", "-u", "http://fake.url/users/1"}
 	tester, err := bench.NewTester(
 		bench.WithStderr(io.Discard),
 		bench.FromArgs(args),
@@ -922,5 +955,83 @@ P99(ms): 901.987`
 	got := stats.String()
 	if !cmp.Equal(want, got) {
 		t.Error(cmp.Diff(want, got))
+	}
+}
+
+func TestNewTester_BodyByDefaultIsNil(t *testing.T) {
+	t.Parallel()
+	tester, err := bench.NewTester(
+		bench.WithURL("http://fake.url"),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := tester.Body()
+	if body != "" {
+		t.Errorf("want tester default body to be empty, got %q", body)
+	}
+}
+
+func TestNewTester_WithBodyXSetsBodyX(t *testing.T) {
+	t.Parallel()
+	tester, err := bench.NewTester(
+		bench.WithURL("http://fake.url"),
+		bench.WithBody(`{"language": "golang"}`),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `{"language": "golang"}`
+	got := tester.Body()
+	if want != got {
+		t.Errorf("want tester body to be %q, got %q", want, got)
+	}
+}
+
+func TestFromArgs_BFlagSetsRequestBody(t *testing.T) {
+	t.Parallel()
+	args := []string{"-b", `{"language": "golang"}`, "-u", "http://fake.url"}
+	tester, err := bench.NewTester(
+		bench.WithStderr(io.Discard),
+		bench.FromArgs(args),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `{"language": "golang"}`
+	got := tester.Body()
+	if want != got {
+		t.Errorf("want tester body to be %q, got %q", want, got)
+	}
+}
+
+func TestRun_WithBodySendsCorrectBody(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewTLSServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(rw, "CannotReadBody", http.StatusInternalServerError)
+		}
+		if string(body) != `{"language": "golang"}` {
+			http.Error(rw, "Error", http.StatusInternalServerError)
+		}
+		fmt.Fprintln(rw, "OK")
+	}))
+	tester, err := bench.NewTester(
+		bench.WithURL(server.URL),
+		bench.WithBody(`{"language": "golang"}`),
+		bench.WithHTTPClient(server.Client()),
+		bench.WithStderr(io.Discard),
+		bench.WithStdout(io.Discard),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = tester.Run()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tester.Stats().Failures > 0 {
+		t.Errorf("want failures to be zero but got %d", tester.Stats().Failures)
 	}
 }

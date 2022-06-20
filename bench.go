@@ -55,6 +55,7 @@ var (
 
 // Tester is the main struct where most information are stored
 type Tester struct {
+	body           string
 	client         *http.Client
 	concurrency    int
 	endAt          time.Duration
@@ -119,10 +120,11 @@ func FromArgs(args []string) Option {
 	return func(t *Tester) error {
 		fs := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
 		fs.SetOutput(t.stderr)
-		reqs := fs.Int("r", 1, "number of requests to be performed in the benchmark")
-		graphs := fs.Bool("g", false, "generate graphs")
+		body := fs.String("b", "", "http body for the requests")
 		concurrency := fs.Int("c", 1, "number of concurrent requests (users) to run benchmark")
+		graphs := fs.Bool("g", false, "generate graphs")
 		method := fs.String("m", "GET", "http method for the requests")
+		reqs := fs.Int("r", 1, "number of requests to be performed in the benchmark")
 		url := fs.String("u", "", "url to run benchmark")
 		if len(args) < 1 {
 			fs.Usage()
@@ -132,11 +134,12 @@ func FromArgs(args []string) Option {
 		if err != nil {
 			return err
 		}
-		t.URL = *url
-		t.requests = *reqs
-		t.graphs = *graphs
+		t.body = *body
 		t.concurrency = *concurrency
-		t.httpMethod = *method
+		t.graphs = *graphs
+		t.httpMethod = strings.ToUpper(*method)
+		t.requests = *reqs
+		t.URL = *url
 		return nil
 	}
 }
@@ -172,7 +175,7 @@ func WithHTTPClient(client *http.Client) Option {
 // initializing a new Tester object
 func WithHTTPMethod(method string) Option {
 	return func(t *Tester) error {
-		t.httpMethod = method
+		t.httpMethod = strings.ToUpper(method)
 		return nil
 	}
 }
@@ -237,6 +240,14 @@ func WithGraphs(graphs bool) Option {
 	}
 }
 
+// WithBody is the functional option to set the request body
+func WithBody(body string) Option {
+	return func(t *Tester) error {
+		t.body = body
+		return nil
+	}
+}
+
 // Concurrency returns the value of simultaneos users
 func (t Tester) Concurrency() int {
 	return t.concurrency
@@ -282,11 +293,16 @@ func (t Tester) HTTPMethod() string {
 	return t.httpMethod
 }
 
+// Body returns the current HTTP request body
+func (t Tester) Body() string {
+	return t.body
+}
+
 // DoRequest perform the HTTP request, record the stats and success or failure
 func (t *Tester) DoRequest() {
 	for range t.work {
 		t.RecordRequest()
-		req, err := http.NewRequest(t.httpMethod, t.URL, nil)
+		req, err := http.NewRequest(t.httpMethod, t.URL, strings.NewReader(t.body))
 		if err != nil {
 			t.LogStdErr(err.Error())
 			t.RecordFailure()
