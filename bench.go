@@ -24,7 +24,7 @@ import (
 )
 
 const (
-	// DefaultConcurrency sets the default number of simultaneos users
+	// DefaultConcurrency sets the default number of simultaneous users
 	DefaultConcurrency = 1
 	// DefaultNumRequests sets the default number of requests to be performed
 	DefaultNumRequests = 1
@@ -204,7 +204,7 @@ func WithStderr(w io.Writer) Option {
 	}
 }
 
-// WithConcurrency is the functional option to set the number of simultaneos
+// WithConcurrency is the functional option to set the number of simultaneous
 // users while initializing a new Tester object
 func WithConcurrency(c int) Option {
 	return func(lg *Tester) error {
@@ -248,7 +248,7 @@ func WithBody(body string) Option {
 	}
 }
 
-// Concurrency returns the value of simultaneos users
+// Concurrency returns the value of simultaneous users
 func (t Tester) Concurrency() int {
 	return t.concurrency
 }

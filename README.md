@@ -1,6 +1,10 @@
 # bench
 
-An HTTP load tester tool.
+[![Go](https://github.com/thiagonache/bench/actions/workflows/go.yml/badge.svg)](https://github.com/thiagonache/bench/actions/workflows/go.yml)
+[![Go Reference](https://pkg.go.dev/badge/github.com/thiagonache/bench.svg)](https://pkg.go.dev/github.com/thiagonache/bench)
+[![Go Report Card](https://goreportcard.com/badge/github.com/thiagonache/bench)](https://goreportcard.com/report/github.com/thiagonache/bench)
+
+An HTTP load tester and compare results tool.
 
 ## Import
 
