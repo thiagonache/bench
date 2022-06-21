@@ -674,7 +674,7 @@ func TestNewTester_WithURLSetsTesterURL(t *testing.T) {
 	}
 }
 
-func TestFromArgs_WithArgRSetsNRequest(t *testing.T) {
+func TestFromArgs_WithArgRSetsNRequests(t *testing.T) {
 	t.Parallel()
 	tester, err := bench.NewTester(
 		bench.WithStderr(io.Discard),
