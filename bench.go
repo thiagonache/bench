@@ -58,6 +58,7 @@ type Tester struct {
 	body           string
 	client         *http.Client
 	concurrency    int
+	contentType    string
 	endAt          time.Duration
 	graphs         bool
 	httpMethod     string
@@ -81,6 +82,7 @@ func NewTester(opts ...Option) (*Tester, error) {
 	tester := &Tester{
 		client:      DefaultHTTPClient,
 		concurrency: DefaultConcurrency,
+		contentType: "text/html",
 		httpMethod:  http.MethodGet,
 		outputPath:  DefaultOutputPath,
 		requests:    DefaultNumRequests,
@@ -122,6 +124,7 @@ func FromArgs(args []string) Option {
 		fs.SetOutput(t.stderr)
 		body := fs.String("b", "", "http body for the requests")
 		concurrency := fs.Int("c", 1, "number of concurrent requests (users) to run benchmark")
+		contentType := fs.String("t", "text/html", "requests content type header")
 		graphs := fs.Bool("g", false, "generate graphs")
 		method := fs.String("m", "GET", "http method for the requests")
 		reqs := fs.Int("r", 1, "number of requests to be performed in the benchmark")
@@ -136,6 +139,7 @@ func FromArgs(args []string) Option {
 		}
 		t.body = *body
 		t.concurrency = *concurrency
+		t.contentType = *contentType
 		t.graphs = *graphs
 		t.httpMethod = strings.ToUpper(*method)
 		t.requests = *reqs
@@ -248,6 +252,14 @@ func WithBody(body string) Option {
 	}
 }
 
+// WithContentType is the functional option to set the request content type
+func WithContentType(contentType string) Option {
+	return func(t *Tester) error {
+		t.contentType = contentType
+		return nil
+	}
+}
+
 // Concurrency returns the value of simultaneous users
 func (t Tester) Concurrency() int {
 	return t.concurrency
@@ -298,6 +310,11 @@ func (t Tester) Body() string {
 	return t.body
 }
 
+// Body returns the current HTTP request body
+func (t Tester) ContentType() string {
+	return t.contentType
+}
+
 // DoRequest perform the HTTP request, record the stats and success or failure
 func (t *Tester) DoRequest() {
 	for range t.work {
@@ -310,6 +327,7 @@ func (t *Tester) DoRequest() {
 		}
 		req.Header.Set("user-agent", t.HTTPUserAgent())
 		req.Header.Set("accept", "*/*")
+		req.Header.Set("content-type", t.ContentType())
 		startTime := time.Now()
 		resp, err := t.client.Do(req)
 		elapsedTime := time.Since(startTime)

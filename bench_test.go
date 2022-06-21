@@ -1023,3 +1023,51 @@ func TestRun_WithBodySendsCorrectBody(t *testing.T) {
 		t.Errorf("want failures to be zero but got %d", tester.Stats().Failures)
 	}
 }
+
+func TestNewTester_ContentTypeByDefaultIsTextHTML(t *testing.T) {
+	t.Parallel()
+	tester, err := bench.NewTester(
+		bench.WithURL("http://fake.url"),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "text/html"
+	got := tester.ContentType()
+	if want != got {
+		t.Errorf("want tester default body to be %q, got %q", want, got)
+	}
+}
+
+func TestNewTester_WithContentTypeXSetsContentTypeX(t *testing.T) {
+	t.Parallel()
+	tester, err := bench.NewTester(
+		bench.WithURL("http://fake.url"),
+		bench.WithContentType("application/json"),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "application/json"
+	got := tester.ContentType()
+	if want != got {
+		t.Errorf("want tester content type to be %q, got %q", want, got)
+	}
+}
+
+func TestFromArgs_TFlagSetsContentType(t *testing.T) {
+	t.Parallel()
+	args := []string{"-t", "application/json", "-u", "http://fake.url"}
+	tester, err := bench.NewTester(
+		bench.WithStderr(io.Discard),
+		bench.FromArgs(args),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "application/json"
+	got := tester.ContentType()
+	if want != got {
+		t.Errorf("want tester content type to be %q, got %q", want, got)
+	}
+}
