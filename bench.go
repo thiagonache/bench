@@ -41,8 +41,8 @@ var (
 	}
 	// ErrNoArgs is the error for when no arguments is passed via CLI
 	ErrNoArgs = errors.New("no arguments")
-	// ErrCMPNoArgs is the error for when no arguments is passed to the cmp subcommand
-	ErrCMPNoArgs = errors.New("no stats file to compare. Please, specify two files")
+	// ErrCmpWrongNumberOfArgs is the error for when no arguments is passed to the cmp subcommand
+	ErrCmpWrongNumberOfArgs = errors.New("cmp takes exactly two arguments")
 	// ErrTimeNotRecorded is the error for when there is no execution time recorded
 	ErrTimeNotRecorded = errors.New("no execution time recorded")
 	// ErrValueCannotBeNil is the error for when the interfaces io.Writer or
@@ -141,6 +141,7 @@ func FromArgs(args []string) Option {
 		t.concurrency = *concurrency
 		t.contentType = *contentType
 		t.graphs = *graphs
+		// Standard HTTP verbs must be uppercase
 		t.httpMethod = strings.ToUpper(*method)
 		t.requests = *reqs
 		t.URL = *url
@@ -634,7 +635,10 @@ func RunCLI(w io.Writer, args []string) error {
 			return err
 		}
 	case "cmp":
-		err := CMPRun(w, args[1:])
+		if len(args) != 3 {
+			return fmt.Errorf("%w: %q", ErrCmpWrongNumberOfArgs, args)
+		}
+		err := CMPRun(w, args[1], args[2])
 		if err != nil {
 			return err
 		}
@@ -645,15 +649,12 @@ func RunCLI(w io.Writer, args []string) error {
 }
 
 // CMPRun is the entrypoint for the subcommand cmp
-func CMPRun(w io.Writer, args []string) error {
-	if len(args) < 2 {
-		return ErrCMPNoArgs
-	}
-	s1, err := ReadStatsFile(args[0])
+func CMPRun(w io.Writer, path1, path2 string) error {
+	s1, err := ReadStatsFile(path1)
 	if err != nil {
 		return err
 	}
-	s2, err := ReadStatsFile(args[1])
+	s2, err := ReadStatsFile(path2)
 	if err != nil {
 		return err
 	}
