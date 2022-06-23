@@ -24,7 +24,7 @@ import (
 )
 
 const (
-	// DefaultConcurrency sets the default number of simultaneos users
+	// DefaultConcurrency sets the default number of simultaneous users
 	DefaultConcurrency = 1
 	// DefaultNumRequests sets the default number of requests to be performed
 	DefaultNumRequests = 1
@@ -41,8 +41,8 @@ var (
 	}
 	// ErrNoArgs is the error for when no arguments is passed via CLI
 	ErrNoArgs = errors.New("no arguments")
-	// ErrCMPNoArgs is the error for when no arguments is passed to the cmp subcommand
-	ErrCMPNoArgs = errors.New("no stats file to compare. Please, specify two files")
+	// ErrCmpWrongNumberOfArgs is the error for when no arguments is passed to the cmp subcommand
+	ErrCmpWrongNumberOfArgs = errors.New("cmp takes exactly two arguments")
 	// ErrTimeNotRecorded is the error for when there is no execution time recorded
 	ErrTimeNotRecorded = errors.New("no execution time recorded")
 	// ErrValueCannotBeNil is the error for when the interfaces io.Writer or
@@ -55,10 +55,13 @@ var (
 
 // Tester is the main struct where most information are stored
 type Tester struct {
-	concurrency    int
+	body           string
 	client         *http.Client
+	concurrency    int
+	contentType    string
 	endAt          time.Duration
 	graphs         bool
+	httpMethod     string
 	outputPath     string
 	requests       int
 	startAt        time.Time
@@ -79,6 +82,8 @@ func NewTester(opts ...Option) (*Tester, error) {
 	tester := &Tester{
 		client:      DefaultHTTPClient,
 		concurrency: DefaultConcurrency,
+		contentType: "text/html",
+		httpMethod:  http.MethodGet,
 		outputPath:  DefaultOutputPath,
 		requests:    DefaultNumRequests,
 		stats:       Stats{},
@@ -117,9 +122,12 @@ func FromArgs(args []string) Option {
 	return func(t *Tester) error {
 		fs := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
 		fs.SetOutput(t.stderr)
-		reqs := fs.Int("r", 1, "number of requests to be performed in the benchmark")
-		graphs := fs.Bool("g", false, "generate graphs")
+		body := fs.String("b", "", "http body for the requests")
 		concurrency := fs.Int("c", 1, "number of concurrent requests (users) to run benchmark")
+		contentType := fs.String("t", "text/html", "requests content type header")
+		graphs := fs.Bool("g", false, "generate graphs")
+		method := fs.String("m", "GET", "http method for the requests")
+		reqs := fs.Int("r", 1, "number of requests to be performed in the benchmark")
 		url := fs.String("u", "", "url to run benchmark")
 		if len(args) < 1 {
 			fs.Usage()
@@ -129,10 +137,14 @@ func FromArgs(args []string) Option {
 		if err != nil {
 			return err
 		}
-		t.URL = *url
-		t.requests = *reqs
-		t.graphs = *graphs
+		t.body = *body
 		t.concurrency = *concurrency
+		t.contentType = *contentType
+		t.graphs = *graphs
+		// Standard HTTP verbs must be uppercase
+		t.httpMethod = strings.ToUpper(*method)
+		t.requests = *reqs
+		t.URL = *url
 		return nil
 	}
 }
@@ -164,6 +176,15 @@ func WithHTTPClient(client *http.Client) Option {
 	}
 }
 
+// WithHTTPMethod is the functional option to set a custom http method while
+// initializing a new Tester object
+func WithHTTPMethod(method string) Option {
+	return func(t *Tester) error {
+		t.httpMethod = strings.ToUpper(method)
+		return nil
+	}
+}
+
 // WithStdout is the functional option to set a custom io.Writer for stdout
 // while initializing a new Tester object
 func WithStdout(w io.Writer) Option {
@@ -188,7 +209,7 @@ func WithStderr(w io.Writer) Option {
 	}
 }
 
-// WithConcurrency is the functional option to set the number of simultaneos
+// WithConcurrency is the functional option to set the number of simultaneous
 // users while initializing a new Tester object
 func WithConcurrency(c int) Option {
 	return func(lg *Tester) error {
@@ -224,7 +245,23 @@ func WithGraphs(graphs bool) Option {
 	}
 }
 
-// Concurrency returns the value of simultaneos users
+// WithBody is the functional option to set the request body
+func WithBody(body string) Option {
+	return func(t *Tester) error {
+		t.body = body
+		return nil
+	}
+}
+
+// WithContentType is the functional option to set the request content type
+func WithContentType(contentType string) Option {
+	return func(t *Tester) error {
+		t.contentType = contentType
+		return nil
+	}
+}
+
+// Concurrency returns the value of simultaneous users
 func (t Tester) Concurrency() int {
 	return t.concurrency
 }
@@ -264,11 +301,26 @@ func (t Tester) Requests() int {
 	return t.requests
 }
 
+// HTTPMethod returns the current HTTP method configured
+func (t Tester) HTTPMethod() string {
+	return t.httpMethod
+}
+
+// Body returns the current HTTP request body
+func (t Tester) Body() string {
+	return t.body
+}
+
+// Body returns the current HTTP request body
+func (t Tester) ContentType() string {
+	return t.contentType
+}
+
 // DoRequest perform the HTTP request, record the stats and success or failure
 func (t *Tester) DoRequest() {
 	for range t.work {
 		t.RecordRequest()
-		req, err := http.NewRequest(http.MethodGet, t.URL, nil)
+		req, err := http.NewRequest(t.httpMethod, t.URL, strings.NewReader(t.body))
 		if err != nil {
 			t.LogStdErr(err.Error())
 			t.RecordFailure()
@@ -276,6 +328,7 @@ func (t *Tester) DoRequest() {
 		}
 		req.Header.Set("user-agent", t.HTTPUserAgent())
 		req.Header.Set("accept", "*/*")
+		req.Header.Set("content-type", t.ContentType())
 		startTime := time.Now()
 		resp, err := t.client.Do(req)
 		elapsedTime := time.Since(startTime)
@@ -550,7 +603,7 @@ type CompareStats struct {
 // String returns a printable string from comparison of two stats.
 func (cs CompareStats) String() string {
 	buf := &bytes.Buffer{}
-	fmt.Fprintf(buf, "Site %s\n", cs.S1.URL)
+	fmt.Fprintf(buf, "Site: %s\n", cs.S1.URL)
 	writer := tabwriter.NewWriter(buf, 20, 0, 0, ' ', 0)
 	fmt.Fprintln(writer, "Metric\tOld\tNew\tDelta\tPercentage")
 	p50Delta := cs.S2.P50 - cs.S1.P50
@@ -582,7 +635,10 @@ func RunCLI(w io.Writer, args []string) error {
 			return err
 		}
 	case "cmp":
-		err := CMPRun(w, args[1:])
+		if len(args) != 3 {
+			return fmt.Errorf("%w: %q", ErrCmpWrongNumberOfArgs, args)
+		}
+		err := CMPRun(w, args[1], args[2])
 		if err != nil {
 			return err
 		}
@@ -593,15 +649,12 @@ func RunCLI(w io.Writer, args []string) error {
 }
 
 // CMPRun is the entrypoint for the subcommand cmp
-func CMPRun(w io.Writer, args []string) error {
-	if len(args) < 2 {
-		return ErrCMPNoArgs
-	}
-	s1, err := ReadStatsFile(args[0])
+func CMPRun(w io.Writer, path1, path2 string) error {
+	s1, err := ReadStatsFile(path1)
 	if err != nil {
 		return err
 	}
-	s2, err := ReadStatsFile(args[1])
+	s2, err := ReadStatsFile(path2)
 	if err != nil {
 		return err
 	}
