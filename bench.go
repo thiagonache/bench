@@ -602,7 +602,7 @@ type CompareStats struct {
 // String returns a printable string from comparison of two stats.
 func (cs CompareStats) String() string {
 	buf := &bytes.Buffer{}
-	fmt.Fprintf(buf, "Site %s\n", cs.S1.URL)
+	fmt.Fprintf(buf, "Site: %s\n", cs.S1.URL)
 	writer := tabwriter.NewWriter(buf, 20, 0, 0, ' ', 0)
 	fmt.Fprintln(writer, "Metric\tOld\tNew\tDelta\tPercentage")
 	p50Delta := cs.S2.P50 - cs.S1.P50

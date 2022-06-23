@@ -854,7 +854,7 @@ func TestCompareStats_StringerPrintsExpectedMessage(t *testing.T) {
 			P99: 101,
 		},
 	}
-	want := `Site http://fake.url
+	want := `Site: http://fake.url
 Metric              Old                 New                 Delta               Percentage
 P50(ms)             100.000             99.000              -1.000              -1.00
 P90(ms)             110.000             100.000             -10.000             -9.09

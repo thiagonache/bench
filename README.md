@@ -61,7 +61,7 @@ import "github.com/thiagonache/bench"
 $ simplebench run -r 10 -u https://httpbin.org/delay/2 > stats1.txt
 $ simplebench run -r 10 -u https://httpbin.org/delay/1 > stats2.txt
 $ simplebench cmp stats{1,2}.txt
-Site https://httpbin.org/delay/2
+Site: https://httpbin.org/delay/2
 Metric              Old                 New                 Delta               Percentage
 P50(ms)             2144.024            1146.673            -997.351            -46.52
 P90(ms)             2221.990            1362.111            -859.879            -38.70
