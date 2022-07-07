@@ -12,9 +12,38 @@ An HTTP load tester and compare results tool.
 import "github.com/thiagonache/bench"
 ```
 
+## Install binary
+
+```shell
+$ go install github.com/thiagonache/bench/cmd/simplebench@latest
+$
+```
 ## CLI
 
+The CLI supports two sub commands, run or cmp.
+
 ### Run
+
+Runs http benchmark and outputs the results to standard output.
+It supports `any` HTTP method and several other configs.
+```text
+Usage of simplebench:
+  -b string
+        http body for the requests
+  -c int
+        number of concurrent requests (users) to run benchmark (default 1)
+  -g    generate graphs
+  -m string
+        http method for the requests (default "GET")
+  -r int
+        number of requests to be performed in the benchmark (default 1)
+  -t string
+        requests content type header (default "text/html")
+  -u string
+        url to run benchmark
+```
+
+Examples:
 
 - GET
 
@@ -56,6 +85,8 @@ import "github.com/thiagonache/bench"
   ```
 
 ### Cmp
+
+It compares two executions and provide the difference.
 
 ```bash
 $ simplebench run -r 10 -u https://httpbin.org/delay/2 > stats1.txt
