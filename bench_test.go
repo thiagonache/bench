@@ -357,7 +357,7 @@ func TestNewTester_ByDefaultUsesTransportWithdisableKeepAlives(t *testing.T) {
 		t.Fatal(err)
 	}
 	c := tester.HTTPClient()
-	got := c.Transport.(*http.Transport).Clone().DisableKeepAlives
+	got := c.Transport.(*http.Transport).DisableKeepAlives
 	if got != true {
 		t.Errorf("default HTTP client should have disableKeepAlives true, got: %t", got)
 	}
