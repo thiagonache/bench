@@ -97,6 +97,9 @@ func NewTester(opts ...Option) (*Tester, error) {
 		wg:        &sync.WaitGroup{},
 		mu:        &sync.Mutex{},
 	}
+	t := http.DefaultTransport.(*http.Transport).Clone()
+	t.DisableKeepAlives = true
+	tester.client.Transport = t
 	for _, o := range opts {
 		err := o(tester)
 		if err != nil {

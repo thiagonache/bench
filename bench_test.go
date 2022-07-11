@@ -348,6 +348,21 @@ func TestNewTester_ByDefaultUsesHTTPClientWithTimeout(t *testing.T) {
 	}
 }
 
+func TestNewTester_ByDefaultUsesTransportWithdisableKeepAlives(t *testing.T) {
+	t.Parallel()
+	tester, err := bench.NewTester(
+		bench.WithURL("http://fake.url"),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := tester.HTTPClient()
+	got := c.Transport.(*http.Transport).Clone().DisableKeepAlives
+	if got != true {
+		t.Errorf("default HTTP client should have disableKeepAlives true, got: %t", got)
+	}
+}
+
 func TestWithHTTPClient_SetsHTTPClient(t *testing.T) {
 	t.Parallel()
 	tester, err := bench.NewTester(
